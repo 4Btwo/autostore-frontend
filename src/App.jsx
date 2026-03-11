@@ -703,7 +703,7 @@ function CartScreen({ cart, onUpdateQty, onRemove, onCheckout, loading }) {
           <span className="cart-total">{fmt(total)}</span>
         </div>
         <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={onCheckout} disabled={loading}>
-          {loading ? "Processando..." : <><Icons.Check /> Finalizar Pedido</>}
+          {loading ? "Redirecionando para pagamento..." : <><Icons.Cart /> Pagar com Mercado Pago</>}
         </button>
       </div>
     </div>
@@ -904,6 +904,82 @@ function ProfileScreen({ user, onLogout }) {
   );
 }
 
+
+// ─── PAYMENT RESULT SCREENS ──────────────────────────────────────────────────
+function PaymentSuccessScreen({ setScreen, clearCart }) {
+  const params = new URLSearchParams(window.location.search);
+  const orderId = params.get("orderId") || sessionStorage.getItem("pendingOrderId");
+
+  useEffect(() => {
+    clearCart();
+    sessionStorage.removeItem("pendingOrderId");
+    // Limpa os params da URL sem recarregar
+    window.history.replaceState({}, "", window.location.pathname);
+  }, []);
+
+  return (
+    <div className="screen" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "70vh", textAlign: "center" }}>
+      <div style={{ fontSize: 72, marginBottom: 16 }}>🎉</div>
+      <div className="page-title" style={{ color: "var(--success)", marginBottom: 8 }}>Pagamento Aprovado!</div>
+      <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 8 }}>Seu pedido foi confirmado com sucesso.</div>
+      {orderId && <div style={{ fontFamily: "monospace", fontSize: 12, color: "var(--muted)", background: "var(--card)", padding: "6px 14px", borderRadius: 99, marginBottom: 24 }}>Pedido #{orderId.slice(-8).toUpperCase()}</div>}
+      <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 32, maxWidth: 280, lineHeight: 1.6 }}>
+        O vendedor foi notificado e entrará em contato em breve.
+      </div>
+      <button className="btn btn-primary" style={{ maxWidth: 240 }} onClick={() => setScreen("orders")}>
+        Ver Meus Pedidos
+      </button>
+      <button className="btn btn-secondary" style={{ maxWidth: 240, marginTop: 10 }} onClick={() => setScreen("home")}>
+        Voltar ao Início
+      </button>
+    </div>
+  );
+}
+
+function PaymentFailureScreen({ setScreen }) {
+  useEffect(() => {
+    window.history.replaceState({}, "", window.location.pathname);
+  }, []);
+
+  return (
+    <div className="screen" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "70vh", textAlign: "center" }}>
+      <div style={{ fontSize: 72, marginBottom: 16 }}>😕</div>
+      <div className="page-title" style={{ color: "var(--danger)", marginBottom: 8 }}>Pagamento Recusado</div>
+      <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 32, maxWidth: 280, lineHeight: 1.6 }}>
+        Não foi possível processar seu pagamento. Verifique os dados e tente novamente.
+      </div>
+      <button className="btn btn-primary" style={{ maxWidth: 240 }} onClick={() => setScreen("cart")}>
+        Tentar Novamente
+      </button>
+      <button className="btn btn-secondary" style={{ maxWidth: 240, marginTop: 10 }} onClick={() => setScreen("home")}>
+        Voltar ao Início
+      </button>
+    </div>
+  );
+}
+
+function PaymentPendingScreen({ setScreen }) {
+  useEffect(() => {
+    window.history.replaceState({}, "", window.location.pathname);
+  }, []);
+
+  return (
+    <div className="screen" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "70vh", textAlign: "center" }}>
+      <div style={{ fontSize: 72, marginBottom: 16 }}>⏳</div>
+      <div className="page-title" style={{ color: "var(--warning)", marginBottom: 8 }}>Pagamento Pendente</div>
+      <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 32, maxWidth: 280, lineHeight: 1.6 }}>
+        Seu pagamento está sendo processado. Pode levar alguns minutos para ser confirmado.
+      </div>
+      <button className="btn btn-primary" style={{ maxWidth: 240 }} onClick={() => setScreen("orders")}>
+        Ver Meus Pedidos
+      </button>
+      <button className="btn btn-secondary" style={{ maxWidth: 240, marginTop: 10 }} onClick={() => setScreen("home")}>
+        Voltar ao Início
+      </button>
+    </div>
+  );
+}
+
 // ─── APP ROOT ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [user, setUser] = useState(null);
@@ -921,6 +997,19 @@ export default function App() {
     el.textContent = styles;
     document.head.appendChild(el);
     return () => document.head.removeChild(el);
+  }, []);
+
+  // Detectar retorno do Mercado Pago pela URL
+  useEffect(() => {
+    const path = window.location.pathname;
+    const params = new URLSearchParams(window.location.search);
+    if (path.includes("/pagamento/sucesso") || params.get("collection_status") === "approved") {
+      setScreen("payment_success");
+    } else if (path.includes("/pagamento/falha") || params.get("collection_status") === "rejected") {
+      setScreen("payment_failure");
+    } else if (path.includes("/pagamento/pendente") || params.get("collection_status") === "pending") {
+      setScreen("payment_pending");
+    }
   }, []);
 
   // Firebase auth listener
@@ -951,6 +1040,7 @@ export default function App() {
   };
 
   const removeFromCart = (id) => setCart(c => c.filter(i => i.id !== id));
+  const clearCart = () => setCart([]);
 
   const checkout = async () => {
     if (cart.length === 0) return;
@@ -964,21 +1054,22 @@ export default function App() {
         name: i.part?.name || i.name || "Peça",
         oemNumber: i.part?.oemNumber || i.oemNumber,
         sellerId: i.sellerId,
-        price: i.price,
-        quantity: i.quantity,
+        price: Number(i.price),
+        quantity: Number(i.quantity),
       }));
-      const res = await fetch(`${API}/orders`, {
+      const res = await fetch(`${API}/payments/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ items, total }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      setCart([]);
-      show("Pedido realizado com sucesso! 🎉", "success");
-      setScreen("orders");
+      if (!res.ok) throw new Error(data.message || "Erro ao criar pagamento");
+      // Salva carrinho para limpar após retorno do MP
+      sessionStorage.setItem("pendingOrderId", data.data.orderId);
+      // Redireciona para o Checkout Pro do Mercado Pago
+      window.location.href = data.data.initPoint;
     } catch (e) {
-      show(e.message || "Erro ao finalizar pedido");
+      show(e.message || "Erro ao ir para pagamento");
     } finally { setCartLoading(false); }
   };
 
@@ -1046,6 +1137,9 @@ export default function App() {
       {screen === "orders" && <OrdersScreen user={user} />}
       {screen === "sell" && isSeller && <SellScreen user={user} />}
       {screen === "profile" && <ProfileScreen user={user} onLogout={() => setUser(null)} />}
+      {screen === "payment_success" && <PaymentSuccessScreen setScreen={setScreen} clearCart={clearCart} />}
+      {screen === "payment_failure" && <PaymentFailureScreen setScreen={setScreen} />}
+      {screen === "payment_pending" && <PaymentPendingScreen setScreen={setScreen} />}
 
       <nav className="bottom-nav">
         {navItems.map(item => (

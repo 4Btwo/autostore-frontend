@@ -16,7 +16,7 @@ let firebaseAuth, firebaseFirestore;
 async function initFirebase() {
   if (firebaseAuth) return;
   const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js");
-  const { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } =
+  const { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup } =
     await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js");
   const { getFirestore, doc, getDoc, setDoc } =
     await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");

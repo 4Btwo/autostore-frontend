@@ -16,13 +16,13 @@ let firebaseAuth, firebaseFirestore;
 async function initFirebase() {
   if (firebaseAuth) return;
   const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js");
-  const { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup } =
+  const { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } =
     await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js");
   const { getFirestore, doc, getDoc, setDoc } =
     await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
   const app = initializeApp(FIREBASE_CONFIG);
   const googleProvider = new GoogleAuthProvider();
-  firebaseAuth = { instance: getAuth(app), onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInWithPopup, googleProvider };
+  firebaseAuth = { instance: getAuth(app), onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInWithPopup, signInWithRedirect, getRedirectResult, googleProvider };
   firebaseFirestore = { instance: getFirestore(app), doc, getDoc, setDoc };
 }
 
@@ -256,28 +256,38 @@ function AuthScreen({ onLogin }) {
   const [show, toastEl] = useToast();
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
+  const handleGoogleUser = async (cred) => {
+    const userRef = firebaseFirestore.doc(firebaseFirestore.instance, "users", cred.user.uid);
+    const snap = await firebaseFirestore.getDoc(userRef);
+    if (!snap.exists()) {
+      await firebaseFirestore.setDoc(userRef, {
+        name: cred.user.displayName || "Usuário Google",
+        email: cred.user.email,
+        photo: cred.user.photoURL || null,
+        type: "buyer",
+        sellerVerified: false,
+        active: true,
+        createdAt: new Date().toISOString(),
+      });
+      onLogin({ uid: cred.user.uid, email: cred.user.email, name: cred.user.displayName, photo: cred.user.photoURL, type: "buyer" });
+    } else {
+      onLogin({ uid: cred.user.uid, email: cred.user.email, ...snap.data() });
+    }
+  };
+
   const loginWithGoogle = async () => {
     setLoading(true);
     try {
       await initFirebase();
-      const cred = await firebaseAuth.signInWithPopup(firebaseAuth.instance, firebaseAuth.googleProvider);
-      const userRef = firebaseFirestore.doc(firebaseFirestore.instance, "users", cred.user.uid);
-      const snap = await firebaseFirestore.getDoc(userRef);
-      if (!snap.exists()) {
-        // Primeiro acesso — cria perfil como comprador
-        await firebaseFirestore.setDoc(userRef, {
-          name: cred.user.displayName || "Usuário Google",
-          email: cred.user.email,
-          photo: cred.user.photoURL || null,
-          type: "buyer",
-          sellerVerified: false,
-          active: true,
-          createdAt: new Date().toISOString(),
-        });
-        onLogin({ uid: cred.user.uid, email: cred.user.email, name: cred.user.displayName, photo: cred.user.photoURL, type: "buyer" });
-      } else {
-        onLogin({ uid: cred.user.uid, email: cred.user.email, ...snap.data() });
+      // Detecta browser interno (Instagram, WhatsApp, etc) que bloqueia popup
+      const isInAppBrowser = /Instagram|FBAN|FBAV|Twitter|Line|Snapchat/i.test(navigator.userAgent);
+      if (isInAppBrowser) {
+        // Usa redirect — página recarrega e volta com o resultado
+        await firebaseAuth.signInWithRedirect(firebaseAuth.instance, firebaseAuth.googleProvider);
+        return; // página vai recarregar
       }
+      const cred = await firebaseAuth.signInWithPopup(firebaseAuth.instance, firebaseAuth.googleProvider);
+      await handleGoogleUser(cred);
     } catch (e) {
       if (e.code !== "auth/popup-closed-by-user") show("Erro ao entrar com Google");
     } finally { setLoading(false); }
@@ -1051,7 +1061,27 @@ export default function App() {
 
   // Firebase auth listener
   useEffect(() => {
-    initFirebase().then(() => {
+    initFirebase().then(async () => {
+      // Verificar se voltou de um redirect do Google
+      try {
+        const result = await firebaseAuth.getRedirectResult(firebaseAuth.instance);
+        if (result?.user) {
+          const userRef = firebaseFirestore.doc(firebaseFirestore.instance, "users", result.user.uid);
+          const snap = await firebaseFirestore.getDoc(userRef);
+          if (!snap.exists()) {
+            await firebaseFirestore.setDoc(userRef, {
+              name: result.user.displayName || "Usuário Google",
+              email: result.user.email,
+              photo: result.user.photoURL || null,
+              type: "buyer",
+              sellerVerified: false,
+              active: true,
+              createdAt: new Date().toISOString(),
+            });
+          }
+        }
+      } catch (_) {}
+
       firebaseAuth.onAuthStateChanged(firebaseAuth.instance, async fbUser => {
         if (fbUser) {
           const snap = await firebaseFirestore.getDoc(firebaseFirestore.doc(firebaseFirestore.instance, "users", fbUser.uid));

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyAdQ5bcdZyFyQsn5-amZ0M7qkEx-w21rJI",
@@ -203,12 +203,21 @@ const styles = `
   .result-count{font-size:13px;color:var(--muted)}
   .toggle-link{text-align:center;font-size:13px;color:var(--muted);margin-top:12px;cursor:pointer}
   .toggle-link span{color:var(--accent);font-weight:500}
+  .profile-avatar-wrap{position:relative;cursor:pointer;margin-bottom:12px}
+  .avatar-overlay{position:absolute;inset:0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px}
+  .avatar-edit-btn{position:absolute;bottom:0;right:0;background:var(--accent);color:#000;border:none;border-radius:50%;width:26px;height:26px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px #0006}
   .profile-avatar{width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#000;margin-bottom:10px}
   .profile-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:22px}
   .stat-box{background:var(--card);padding:14px;text-align:center}
   .stat-num{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--accent)}
   .stat-lbl{font-size:11px;color:var(--muted)}
   .seller-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .photo-upload-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+  .photo-slot{aspect-ratio:1;border-radius:10px;border:1.5px dashed var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;background:var(--card2);transition:border-color .2s}
+  .photo-slot:hover{border-color:var(--accent)}
+  .photo-slot img{width:100%;height:100%;object-fit:cover}
+  .photo-slot .remove-photo{position:absolute;top:4px;right:4px;background:#ef444490;color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+  .photo-add-icon{font-size:22px;color:var(--muted)}
   .span2{grid-column:span 2}
   .search-hero{background:linear-gradient(135deg,#131929,#0c1020);border:1px solid var(--border);border-radius:var(--radius);padding:22px;margin-bottom:22px;text-align:center}
   .hero-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;color:var(--accent);margin-bottom:4px}
@@ -826,9 +835,26 @@ function SellScreen({ user }) {
   const [oem, setOem] = useState("");
   const [masterPart, setMasterPart] = useState(null);
   const [form, setForm] = useState({ price: "", stock: "", condition: "new", warrantyMonths: "0", description: "" });
+  const [photos, setPhotos] = useState([]); // [{file, preview}]
   const [loading, setLoading] = useState(false);
   const [show, toastEl] = useToast();
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
+  const fileInputRef = useRef();
+
+  const addPhoto = (e) => {
+    const files = Array.from(e.target.files || []);
+    const remaining = 4 - photos.length;
+    const toAdd = files.slice(0, remaining).map(file => ({
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+    setPhotos(p => [...p, ...toAdd]);
+    e.target.value = "";
+  };
+
+  const removePhoto = (idx) => {
+    setPhotos(p => p.filter((_, i) => i !== idx));
+  };
 
   const searchOEM = async () => {
     if (!oem.trim()) return show("Digite o número OEM");
@@ -850,15 +876,29 @@ function SellScreen({ user }) {
     try {
       await initFirebase();
       const token = await firebaseAuth.instance.currentUser?.getIdToken();
+      // Usa FormData para enviar fotos junto com os dados
+      const fd = new FormData();
+      fd.append("oemNumber", masterPart.oemNumber);
+      fd.append("name", masterPart.name);
+      fd.append("brandId", masterPart.brandId || "");
+      fd.append("categoryId", masterPart.categoryId || "");
+      fd.append("description", form.description || masterPart.description || "");
+      fd.append("sellerId", user.uid);
+      fd.append("price", form.price);
+      fd.append("stock", form.stock);
+      fd.append("condition", form.condition);
+      fd.append("warrantyMonths", form.warrantyMonths);
+      photos.forEach(p => fd.append("images", p.file));
+
       const res = await fetch(`${API}/marketplaceParts`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ oemNumber: masterPart.oemNumber, name: masterPart.name, brandId: masterPart.brandId, categoryId: masterPart.categoryId, description: form.description || masterPart.description || "", sellerId: user.uid, price: form.price, stock: form.stock, condition: form.condition, warrantyMonths: form.warrantyMonths }),
+        headers: { Authorization: `Bearer ${token}` }, // sem Content-Type — FormData define sozinho
+        body: fd,
       });
       const data = await res.json();
       if (!res.ok) return show(data.message || "Erro ao anunciar");
       show("Peça anunciada com sucesso! 🎉", "success");
-      setStep(1); setOem(""); setMasterPart(null);
+      setStep(1); setOem(""); setMasterPart(null); setPhotos([]);
       setForm({ price: "", stock: "", condition: "new", warrantyMonths: "0", description: "" });
     } catch { show("Erro ao anunciar peça"); }
     finally { setLoading(false); }
@@ -891,6 +931,23 @@ function SellScreen({ user }) {
               </div>
             </div>
           </div>
+          <div className="input-wrap">
+            <label className="label">Fotos da peça <span style={{color:"var(--muted)",fontWeight:400}}>({photos.length}/4)</span></label>
+            <div className="photo-upload-grid">
+              {photos.map((p, i) => (
+                <div key={i} className="photo-slot">
+                  <img src={p.preview} alt="" />
+                  <button className="remove-photo" onClick={() => removePhoto(i)}>×</button>
+                </div>
+              ))}
+              {photos.length < 4 && (
+                <div className="photo-slot" onClick={() => fileInputRef.current?.click()}>
+                  <span className="photo-add-icon">📷</span>
+                </div>
+              )}
+            </div>
+            <input ref={fileInputRef} type="file" accept="image/*" multiple style={{display:"none"}} onChange={addPhoto} />
+          </div>
           <div className="seller-form-grid">
             <div className="input-wrap"><label className="label">Preço (R$)</label><input className="input" type="number" placeholder="150.00" value={form.price} onChange={set("price")} /></div>
             <div className="input-wrap"><label className="label">Qtd. em estoque</label><input className="input" type="number" placeholder="1" value={form.stock} onChange={set("stock")} /></div>
@@ -909,15 +966,43 @@ function SellScreen({ user }) {
 }
 
 // ─── PROFILE ──────────────────────────────────────────────────────────────────
-function ProfileScreen({ user, onLogout }) {
+function ProfileScreen({ user, onLogout, onUpdateUser }) {
   const [myParts, setMyParts] = useState([]);
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const [photo, setPhoto] = useState(user?.photo || null);
   const isSeller = user?.type === "seller";
   const initials = (user?.name || "U").split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
+  const photoInputRef = useRef();
+  const [show, toastEl] = useToast();
 
   useEffect(() => {
     if (!isSeller) return;
     fetch(`${API}/marketplaceParts?sellerId=${user.uid}`).then(r => r.json()).then(d => setMyParts(d.data || [])).catch(() => {});
   }, []);
+
+  const uploadPhoto = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoLoading(true);
+    try {
+      await initFirebase();
+      const token = await firebaseAuth.instance.currentUser?.getIdToken();
+      const fd = new FormData();
+      fd.append("photo", file);
+      const res = await fetch(`${API}/users/photo`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      setPhoto(data.data.photo);
+      onUpdateUser?.({ ...user, photo: data.data.photo });
+      show("Foto atualizada! 🎉", "success");
+    } catch (e) {
+      show(e.message || "Erro ao atualizar foto");
+    } finally { setPhotoLoading(false); e.target.value = ""; }
+  };
 
   const logout = async () => {
     await initFirebase();
@@ -927,8 +1012,16 @@ function ProfileScreen({ user, onLogout }) {
 
   return (
     <div className="screen">
+      {toastEl}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 8, marginBottom: 26 }}>
-        <div className="profile-avatar">{initials}</div>
+        <div className="profile-avatar-wrap" onClick={() => photoInputRef.current?.click()}>
+          {photo
+            ? <img src={photo} alt="" style={{width:80,height:80,borderRadius:"50%",objectFit:"cover"}} />
+            : <div className="profile-avatar">{initials}</div>
+          }
+          <div className="avatar-edit-btn">{photoLoading ? "⏳" : "📷"}</div>
+        </div>
+        <input ref={photoInputRef} type="file" accept="image/*" style={{display:"none"}} onChange={uploadPhoto} />
         <div style={{ fontSize: 20, fontWeight: 700 }}>{user?.name}</div>
         <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 6 }}>{user?.email}</div>
         <span className={`badge ${isSeller ? "badge-seller" : "badge-new"}`}>{isSeller ? "Vendedor" : "Comprador"}</span>
@@ -1209,7 +1302,7 @@ export default function App() {
       {screen === "cart" && <CartScreen cart={cart} onUpdateQty={updateQty} onRemove={removeFromCart} onCheckout={checkout} loading={cartLoading} />}
       {screen === "orders" && <OrdersScreen user={user} />}
       {screen === "sell" && isSeller && <SellScreen user={user} />}
-      {screen === "profile" && <ProfileScreen user={user} onLogout={() => setUser(null)} />}
+      {screen === "profile" && <ProfileScreen user={user} onLogout={() => setUser(null)} onUpdateUser={setUser} />}
       {screen === "payment_success" && <PaymentSuccessScreen setScreen={setScreen} clearCart={clearCart} />}
       {screen === "payment_failure" && <PaymentFailureScreen setScreen={setScreen} />}
       {screen === "payment_pending" && <PaymentPendingScreen setScreen={setScreen} />}

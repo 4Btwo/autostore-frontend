@@ -180,8 +180,10 @@ const styles = `
   .auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--border)}
 
   /* FILTER BAR */
-  .filter-bar{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;margin-bottom:18px;scrollbar-width:none}
+  .filter-bar{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;margin-bottom:10px;scrollbar-width:none}
   .filter-bar::-webkit-scrollbar{display:none}
+  .filter-section{margin-bottom:18px}
+  .filter-label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
   .chip{flex-shrink:0;padding:7px 15px;border-radius:99px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s}
   .chip.active{border-color:var(--accent);background:#f5a62315;color:var(--accent)}
 
@@ -504,8 +506,17 @@ function SearchScreen({ onVehicleFound }) {
 // ─── RESULTS ──────────────────────────────────────────────────────────────────
 function ResultsScreen({ vehicleData, onBack, onSelectPart }) {
   const [filter, setFilter] = useState("all");
+  const [catFilter, setCatFilter] = useState("all");
   const { plate, vehicle, parts } = vehicleData;
-  const filtered = parts.filter(p => filter === "all" || p.condition === filter);
+
+  // Extrai categorias únicas das peças retornadas
+  const categories = ["all", ...new Set(parts.map(p => p.part?.categoryName).filter(Boolean))];
+
+  const filtered = parts.filter(p => {
+    const condOk = filter === "all" || p.condition === filter;
+    const catOk = catFilter === "all" || p.part?.categoryName === catFilter;
+    return condOk && catOk;
+  });
 
   return (
     <div className="screen">
@@ -523,11 +534,26 @@ function ResultsScreen({ vehicleData, onBack, onSelectPart }) {
         <div className="page-title" style={{ fontSize: 22, margin: 0 }}>Peças Compatíveis</div>
         <div className="result-count">{filtered.length} resultado{filtered.length !== 1 ? "s" : ""}</div>
       </div>
-      <div className="filter-bar">
-        {[{ k: "all", l: "Todas" }, { k: "new", l: "Novas" }, { k: "used", l: "Usadas" }].map(f => (
-          <button key={f.k} className={`chip ${filter === f.k ? "active" : ""}`} onClick={() => setFilter(f.k)}>{f.l}</button>
-        ))}
+      <div className="filter-section">
+        <div className="filter-label">Condição</div>
+        <div className="filter-bar">
+          {[{ k: "all", l: "Todas" }, { k: "new", l: "Novas" }, { k: "used", l: "Usadas" }].map(f => (
+            <button key={f.k} className={`chip ${filter === f.k ? "active" : ""}`} onClick={() => setFilter(f.k)}>{f.l}</button>
+          ))}
+        </div>
       </div>
+      {categories.length > 1 && (
+        <div className="filter-section">
+          <div className="filter-label">Categoria</div>
+          <div className="filter-bar">
+            {categories.map(c => (
+              <button key={c} className={`chip ${catFilter === c ? "active" : ""}`} onClick={() => setCatFilter(c)}>
+                {c === "all" ? "Todas" : c}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {filtered.length === 0 ? (
         <div className="empty"><div className="empty-icon">🔧</div><div className="empty-title">Nenhuma peça encontrada</div><div className="empty-sub">Tente outro filtro</div></div>
       ) : filtered.map((item, i) => (
@@ -557,21 +583,44 @@ function MarketplaceScreen({ onSelectPart }) {
   const [parts, setParts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  const [catFilter, setCatFilter] = useState("all");
 
   useEffect(() => {
     fetch(`${API}/marketplaceParts`).then(r => r.json()).then(d => setParts(d.data || [])).catch(() => []).finally(() => setLoading(false));
   }, []);
 
-  const filtered = parts.filter(p => filter === "all" || p.condition === filter);
+  const categories = ["all", ...new Set(parts.map(p => p.part?.categoryName).filter(Boolean))];
+
+  const filtered = parts.filter(p => {
+    const condOk = filter === "all" || p.condition === filter;
+    const catOk = catFilter === "all" || p.part?.categoryName === catFilter;
+    return condOk && catOk;
+  });
 
   return (
     <div className="screen">
       <div className="page-title">Marketplace</div>
       <div className="page-sub">Autopeças no catálogo OEM</div>
-      <div className="filter-bar">
-        {[{ k: "all", l: "Todos" }, { k: "new", l: "Novos" }, { k: "used", l: "Usados" }].map(f => (
-          <button key={f.k} className={`chip ${filter === f.k ? "active" : ""}`} onClick={() => setFilter(f.k)}>{f.l}</button>
-        ))}
+      <div className="filter-section">
+        <div className="filter-label">Condição</div>
+        <div className="filter-bar">
+          {[{ k: "all", l: "Todos" }, { k: "new", l: "Novos" }, { k: "used", l: "Usados" }].map(f => (
+            <button key={f.k} className={`chip ${filter === f.k ? "active" : ""}`} onClick={() => setFilter(f.k)}>{f.l}</button>
+          ))}
+        </div>
+      </div>
+      {categories.length > 1 && (
+        <div className="filter-section">
+          <div className="filter-label">Categoria</div>
+          <div className="filter-bar">
+            {categories.map(c => (
+              <button key={c} className={`chip ${catFilter === c ? "active" : ""}`} onClick={() => setCatFilter(c)}>
+                {c === "all" ? "Todas" : c}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       </div>
       {loading ? <div className="spinner" /> : filtered.length === 0 ? (
         <div className="empty"><div className="empty-icon">🛒</div><div className="empty-title">Nenhuma peça disponível</div></div>

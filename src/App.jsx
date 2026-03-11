@@ -1093,7 +1093,7 @@ export default function App() {
     { key: "search", label: "Buscar", icon: <Icons.Search /> },
     { key: "marketplace", label: "Loja", icon: <Icons.Shop /> },
     { key: "orders", label: "Pedidos", icon: <Icons.Orders /> },
-    ...(isSeller ? [{ key: "sell", label: "Vender", icon: <Icons.Sell /> }] : [{ key: "profile", label: "Perfil", icon: <Icons.User /> }]),
+    ...(isSeller ? [{ key: "sell", label: "Vender", icon: <Icons.Sell /> }, { key: "profile", label: "Perfil", icon: <Icons.User /> }] : [{ key: "profile", label: "Perfil", icon: <Icons.User /> }]),
   ];
 
   // Se há peça selecionada, mostra detalhe

@@ -119,7 +119,11 @@ const styles = `
   .part-stock{font-size:11px;color:var(--muted);margin-top:2px}
 
   /* DETAIL SCREEN */
-  .detail-images{background:var(--card2);border-radius:var(--radius);height:200px;display:flex;align-items:center;justify-content:center;font-size:64px;margin-bottom:20px;border:1px solid var(--border)}
+  .detail-images{background:var(--card2);border-radius:var(--radius);height:220px;display:flex;align-items:center;justify-content:center;font-size:64px;margin-bottom:20px;border:1px solid var(--border);overflow:hidden;position:relative}
+  .detail-images img{width:100%;height:100%;object-fit:cover}
+  .detail-thumbs{display:flex;gap:8px;margin-bottom:20px;overflow-x:auto;scrollbar-width:none}
+  .detail-thumb{width:60px;height:60px;border-radius:8px;object-fit:cover;border:2px solid transparent;cursor:pointer;flex-shrink:0}
+  .detail-thumb.active{border-color:var(--accent)}
   .detail-title{font-size:22px;font-weight:700;margin-bottom:4px}
   .detail-oem{font-family:monospace;font-size:13px;color:var(--muted);margin-bottom:12px}
   .detail-price{font-family:'Bebas Neue',sans-serif;font-size:42px;color:var(--accent);line-height:1;margin-bottom:4px}
@@ -660,6 +664,8 @@ function PartDetailScreen({ part, onBack, onAddToCart }) {
 
   const data = detail || part;
   const maxQty = data?.stock || 99;
+  const imgs = data?.images?.length ? data.images : (data?.part?.images?.length ? data.part.images : []);
+  const [activeImg, setActiveImg] = useState(0);
 
   const addToCart = () => {
     if (qty > maxQty) return show(`Estoque disponível: ${maxQty}`);
@@ -672,7 +678,22 @@ function PartDetailScreen({ part, onBack, onAddToCart }) {
       {toastEl}
       <button className="back-btn" onClick={onBack}><Icons.Back /> Voltar</button>
 
-      <div className="detail-images">🔧</div>
+      {imgs.length > 0 ? (
+        <>
+          <div className="detail-images">
+            <img src={imgs[activeImg]} alt="" />
+          </div>
+          {imgs.length > 1 && (
+            <div className="detail-thumbs">
+              {imgs.map((img, i) => (
+                <img key={i} src={img} className={"detail-thumb" + (activeImg === i ? " active" : "")} onClick={() => setActiveImg(i)} alt="" />
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="detail-images">🔧</div>
+      )}
 
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>

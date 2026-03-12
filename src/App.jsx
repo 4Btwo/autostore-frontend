@@ -1020,7 +1020,7 @@ function OrdersScreen({ user }) {
             <div style={{marginTop:10,fontSize:12,color:"var(--success)"}}>✅ Avaliação enviada</div>
           )}
         </div>
-      ))]}
+      ))}
     </div>
   );
 }

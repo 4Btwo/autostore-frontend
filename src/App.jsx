@@ -625,7 +625,6 @@ function MarketplaceScreen({ onSelectPart }) {
           </div>
         </div>
       )}
-      </div>
       {loading ? <div className="spinner" /> : filtered.length === 0 ? (
         <div className="empty"><div className="empty-icon">🛒</div><div className="empty-title">Nenhuma peça disponível</div></div>
       ) : filtered.map((item, i) => (

@@ -905,16 +905,31 @@ function SellScreen({ user }) {
     setPhotos(p => p.filter((_, i) => i !== idx));
   };
 
+  const [suggestions, setSuggestions] = useState([]);
+
   const searchOEM = async () => {
-    if (!oem.trim()) return show("Digite o número OEM");
+    if (!oem.trim()) return show("Digite o número OEM ou nome da peça");
     setLoading(true);
+    setSuggestions([]);
     try {
+      // Tenta busca por OEM exato primeiro
       const res = await fetch(`${API}/parts?oem=${encodeURIComponent(oem)}`);
       const data = await res.json();
       const arr = Array.isArray(data) ? data : (data.data || []);
-      const found = arr.find(p => p.oemNumber?.toLowerCase() === oem.toLowerCase());
-      if (found) { setMasterPart(found); setStep(2); }
-      else show("OEM não encontrado no catálogo.");
+      
+      // Busca exata por OEM
+      const exactOEM = arr.find(p => p.oemNumber?.toLowerCase() === oem.toLowerCase());
+      if (exactOEM) { setMasterPart(exactOEM); setStep(2); return; }
+
+      // Busca parcial por OEM ou nome
+      const partial = arr.filter(p =>
+        p.oemNumber?.toLowerCase().includes(oem.toLowerCase()) ||
+        p.name?.toLowerCase().includes(oem.toLowerCase())
+      );
+
+      if (partial.length === 1) { setMasterPart(partial[0]); setStep(2); }
+      else if (partial.length > 1) { setSuggestions(partial); }
+      else show("Nenhuma peça encontrada. Tente outro termo.");
     } catch { show("Erro ao buscar catálogo"); }
     finally { setLoading(false); }
   };
@@ -965,8 +980,26 @@ function SellScreen({ user }) {
               🔖 Busque pelo número OEM da peça. Isso garante que compradores encontram a peça correta para seu veículo.
             </div>
           </div>
-          <div className="input-wrap"><label className="label">Número OEM</label><input className="input" placeholder="ex: 06A-115-561-B" value={oem} onChange={e => setOem(e.target.value.toUpperCase())} onKeyDown={e => e.key === "Enter" && searchOEM()} /></div>
+          <div className="input-wrap">
+            <label className="label">Número OEM ou nome da peça</label>
+            <input className="input" placeholder="ex: NGK-BKR5EIX ou Vela de Ignição" value={oem} onChange={e => { setOem(e.target.value.toUpperCase()); setSuggestions([]); }} onKeyDown={e => e.key === "Enter" && searchOEM()} />
+          </div>
           <button className="btn btn-primary" onClick={searchOEM} disabled={loading}>{loading ? "Buscando..." : "🔍 Buscar no Catálogo OEM"}</button>
+          {suggestions.length > 0 && (
+            <div style={{marginTop:12}}>
+              <div className="filter-label" style={{marginBottom:8}}>Selecione a peça:</div>
+              {suggestions.map((p, i) => (
+                <div key={i} className="part-card" style={{marginBottom:8,cursor:"pointer"}} onClick={() => { setMasterPart(p); setStep(2); setSuggestions([]); }}>
+                  <div className="part-icon">🔧</div>
+                  <div className="part-info">
+                    <div className="part-name">{p.name}</div>
+                    <div className="part-oem">OEM: {p.oemNumber}</div>
+                    {p.description && <div style={{fontSize:11,color:"var(--muted)",marginTop:2}}>{p.description}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </>
       ) : (
         <>

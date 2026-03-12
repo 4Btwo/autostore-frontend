@@ -154,6 +154,18 @@ const styles = `
   .cart-total{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--accent)}
 
   /* ORDERS */
+  .stars{display:flex;gap:2px}
+  .star{font-size:20px;cursor:pointer;transition:transform .1s;line-height:1}
+  .star:hover{transform:scale(1.2)}
+  .star-sm{font-size:13px}
+  .review-card{background:var(--card2);border-radius:10px;padding:12px;margin-bottom:10px}
+  .review-header{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .review-avatar{width:28px;height:28px;border-radius:50%;background:var(--accent);color:#000;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .review-name{font-size:13px;font-weight:600}
+  .review-comment{font-size:13px;color:var(--muted);line-height:1.5}
+  .seller-rating{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+  .rating-avg{font-size:20px;font-weight:700;color:var(--accent)}
+  .rating-count{font-size:12px;color:var(--muted)}
   .order-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
   .order-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
   .order-id{font-family:monospace;font-size:12px;color:var(--muted)}
@@ -247,6 +259,26 @@ function useToast() {
   const show = (msg, type = "error") => setToast({ msg, type });
   const el = toast ? <Toast {...toast} onDone={() => setToast(null)} /> : null;
   return [show, el];
+}
+
+// ─── STARS ────────────────────────────────────────────────────────────────────
+function Stars({ value, onChange, size = "md" }) {
+  const [hovered, setHovered] = useState(null);
+  const active = hovered ?? value ?? 0;
+  return (
+    <div className="stars">
+      {[1,2,3,4,5].map(n => (
+        <span
+          key={n}
+          className={size === "sm" ? "star star-sm" : "star"}
+          style={{ color: n <= active ? "#f5a623" : "var(--border)" }}
+          onClick={() => onChange?.(n)}
+          onMouseEnter={() => onChange && setHovered(n)}
+          onMouseLeave={() => onChange && setHovered(null)}
+        >★</span>
+      ))}
+    </div>
+  );
 }
 
 const Icons = {
@@ -665,6 +697,16 @@ function PartDetailScreen({ part, onBack, onAddToCart }) {
   const maxQty = data?.stock || 99;
   const imgs = data?.images?.length ? data.images : (data?.part?.images?.length ? data.part.images : []);
   const [activeImg, setActiveImg] = useState(0);
+  const [reviews, setReviews] = useState([]);
+
+  useEffect(() => {
+    const sellerId = data?.sellerId || data?.seller?.uid;
+    if (!sellerId) return;
+    fetch(`${API}/reviews/seller/${sellerId}`)
+      .then(r => r.json())
+      .then(d => setReviews(d.data || []))
+      .catch(() => {});
+  }, [data?.sellerId]);
 
   const addToCart = () => {
     if (qty > maxQty) return show(`Estoque disponível: ${maxQty}`);
@@ -748,14 +790,44 @@ function PartDetailScreen({ part, onBack, onAddToCart }) {
         <div className="detail-section">
           <div className="detail-section-title">Vendedor</div>
           <div className="seller-box">
-            <div className="seller-avatar">{(data.seller.name || "V")[0].toUpperCase()}</div>
-            <div>
+            {data.seller.photo
+              ? <img src={data.seller.photo} alt="" style={{width:40,height:40,borderRadius:"50%",objectFit:"cover"}} />
+              : <div className="seller-avatar">{(data.seller.name || "V")[0].toUpperCase()}</div>
+            }
+            <div style={{flex:1}}>
               <div style={{ fontWeight: 600, fontSize: 15 }}>{data.seller.name}</div>
               <div style={{ fontSize: 12, color: "var(--muted)" }}>
                 {data.seller.sellerVerified ? "✅ Vendedor verificado" : "⏳ Verificação pendente"}
               </div>
+              {data.seller.ratingAvg > 0 && (
+                <div className="seller-rating" style={{marginTop:4}}>
+                  <Stars value={Math.round(data.seller.ratingAvg)} size="sm" />
+                  <span className="rating-avg" style={{fontSize:14}}>{data.seller.ratingAvg.toFixed(1)}</span>
+                  <span className="rating-count">({data.seller.ratingCount} avaliações)</span>
+                </div>
+              )}
             </div>
           </div>
+          {reviews.length > 0 && (
+            <div style={{marginTop:14}}>
+              <div style={{fontSize:12,fontWeight:600,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".6px",marginBottom:10}}>Avaliações</div>
+              {reviews.slice(0,3).map((r, i) => (
+                <div key={i} className="review-card">
+                  <div className="review-header">
+                    {r.buyerPhoto
+                      ? <img src={r.buyerPhoto} alt="" style={{width:28,height:28,borderRadius:"50%",objectFit:"cover"}} />
+                      : <div className="review-avatar">{(r.buyerName||"U")[0]}</div>
+                    }
+                    <div>
+                      <div className="review-name">{r.buyerName}</div>
+                      <Stars value={r.rating} size="sm" />
+                    </div>
+                  </div>
+                  {r.comment && <div className="review-comment">{r.comment}</div>}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -845,6 +917,32 @@ function CartScreen({ cart, onUpdateQty, onRemove, onCheckout, loading }) {
 function OrdersScreen({ user }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [reviewing, setReviewing] = useState(null); // pedido sendo avaliado
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [show, toastEl] = useToast();
+
+  const submitReview = async () => {
+    if (!rating) return show("Selecione uma nota");
+    setSubmitting(true);
+    try {
+      await initFirebase();
+      const token = await firebaseAuth.instance.currentUser?.getIdToken();
+      const sellerId = reviewing.items?.[0]?.sellerId || reviewing.sellerId;
+      const res = await fetch(`${API}/reviews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ sellerId, orderId: reviewing.id, rating, comment }),
+      });
+      const data = await res.json();
+      if (!res.ok) return show(data.message || "Erro ao enviar avaliação");
+      show("Avaliação enviada! ⭐", "success");
+      setOrders(prev => prev.map(o => o.id === reviewing.id ? { ...o, reviewed: true } : o));
+      setReviewing(null); setRating(0); setComment("");
+    } catch { show("Erro ao enviar avaliação"); }
+    finally { setSubmitting(false); }
+  };
 
   const statusLabel = { pending: "Pendente", confirmed: "Confirmado", shipped: "Enviado", delivered: "Entregue", cancelled: "Cancelado" };
   const statusBadge = { pending: "badge-pending", confirmed: "badge-confirmed", shipped: "badge-shipped", delivered: "badge-delivered", cancelled: "badge-cancelled" };
@@ -865,6 +963,27 @@ function OrdersScreen({ user }) {
 
   return (
     <div className="screen">
+      {toastEl}
+      {reviewing && (
+        <div style={{position:"fixed",inset:0,background:"#000a",zIndex:100,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={() => setReviewing(null)}>
+          <div style={{background:"var(--dark)",borderRadius:"20px 20px 0 0",padding:"28px 24px",width:"100%",maxWidth:480}} onClick={e => e.stopPropagation()}>
+            <div style={{fontWeight:700,fontSize:18,marginBottom:4}}>Avaliar compra</div>
+            <div style={{fontSize:13,color:"var(--muted)",marginBottom:20}}>Pedido #{(reviewing.id||"").slice(-8).toUpperCase()}</div>
+            <div style={{marginBottom:16}}>
+              <div className="label" style={{marginBottom:8}}>Sua nota</div>
+              <Stars value={rating} onChange={setRating} />
+            </div>
+            <div className="input-wrap">
+              <label className="label">Comentário (opcional)</label>
+              <textarea className="input" rows={3} placeholder="Como foi sua experiência?" value={comment} onChange={e => setComment(e.target.value)} />
+            </div>
+            <div className="btn-row" style={{marginTop:16}}>
+              <button className="btn btn-secondary" onClick={() => setReviewing(null)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={submitReview} disabled={submitting || !rating}>{submitting ? "Enviando..." : "Enviar avaliação"}</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="page-title">Meus Pedidos</div>
       <div className="page-sub">Histórico de compras</div>
       {loading ? <div className="spinner" /> : orders.length === 0 ? (
@@ -892,8 +1011,16 @@ function OrdersScreen({ user }) {
             <span style={{ fontWeight: 600 }}>Total</span>
             <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 22, color: "var(--accent)" }}>{fmt(order.total)}</span>
           </div>
+          {order.status === "delivered" && !order.reviewed && (
+            <button className="btn btn-secondary" style={{marginTop:10,fontSize:13}} onClick={() => setReviewing(order)}>
+              ⭐ Avaliar compra
+            </button>
+          )}
+          {order.reviewed && (
+            <div style={{marginTop:10,fontSize:12,color:"var(--success)"}}>✅ Avaliação enviada</div>
+          )}
         </div>
-      ))}
+      ))]}
     </div>
   );
 }

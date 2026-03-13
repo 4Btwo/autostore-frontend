@@ -237,9 +237,24 @@ const styles = `
 
   /* AUTH */
   .auth-screen{min-height:100vh;background:var(--black);display:flex;flex-direction:column;align-items:stretch;overflow:hidden}
+  /* Desktop: hero ocupa tela toda como fundo, form centralizado sobre ela */
+  @media(min-width:640px){
+    .auth-screen{position:relative;flex-direction:row;align-items:stretch}
+    .auth-hero{position:fixed!important;inset:0;height:100vh!important;z-index:0}
+    .auth-hero img{width:100%;height:100%;object-fit:cover}
+    .auth-hero-overlay{background:linear-gradient(to right,rgba(8,10,15,.92) 38%,rgba(8,10,15,.55) 100%)!important}
+    .auth-hero-logo{display:none!important}
+    .auth-body{position:relative;z-index:1;width:420px;min-height:100vh;background:transparent!important;border-radius:0!important;margin-top:0!important;padding:0!important;display:flex;flex-direction:column;justify-content:center;padding:40px 36px!important}
+    .auth-body::before{content:'';position:absolute;inset:0;background:rgba(14,17,24,.88);backdrop-filter:blur(2px);z-index:-1}
+    .auth-desktop-logo{display:flex!important}
+  }
+  .auth-desktop-logo{display:none;flex-direction:column;margin-bottom:36px}
+  .auth-desktop-logo-text{font-family:'Bebas Neue',sans-serif;font-size:48px;letter-spacing:5px;color:var(--accent);line-height:1}
+  .auth-desktop-logo-text span{color:#fff}
+  .auth-desktop-logo-sub{font-size:12px;color:rgba(255,255,255,.5);letter-spacing:2px;text-transform:uppercase;margin-top:4px}
   .auth-logo{font-family:'Bebas Neue',sans-serif;font-size:56px;letter-spacing:4px;color:var(--accent);margin-bottom:2px}
   .auth-tag{font-size:13px;color:var(--muted);margin-bottom:36px;text-align:center}
-  .auth-box{background:var(--dark);border:1px solid var(--border);border-radius:16px;padding:30px 26px;width:100%;max-width:400px}
+  .auth-box{background:transparent;border:none;border-radius:0;padding:0;width:100%;max-width:400px}
   .auth-tabs{display:flex;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border);margin-bottom:26px}
   .auth-tab{flex:1;padding:11px;text-align:center;cursor:pointer;font-weight:500;font-size:14px;border:none;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;transition:all .2s}
   .auth-tab.active{background:var(--accent);color:#000;font-weight:700}
@@ -437,6 +452,11 @@ function AuthScreen({ onLogin }) {
       </div>
       <div className="auth-body">
       <div className="auth-box">
+        {/* Logo visível apenas no desktop */}
+        <div className="auth-desktop-logo">
+          <div className="auth-desktop-logo-text">AUTO<span>STORE</span></div>
+          <div className="auth-desktop-logo-sub">Marketplace Automotivo</div>
+        </div>
         <div className="auth-tabs">
           <button className={`auth-tab ${tab === "login" ? "active" : ""}`} onClick={() => setTab("login")}>Entrar</button>
           <button className={`auth-tab ${tab === "register" ? "active" : ""}`} onClick={() => setTab("register")}>Cadastrar</button>

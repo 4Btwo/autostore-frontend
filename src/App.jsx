@@ -11,19 +11,25 @@ const FIREBASE_CONFIG = {
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
-let firebaseAuth, firebaseFirestore;
+let firebaseAuth, firebaseFirestore, firebaseStorage, firebaseDatabase;
 
 async function initFirebase() {
   if (firebaseAuth) return;
   const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js");
   const { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } =
     await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js");
-  const { getFirestore, doc, getDoc, setDoc } =
+  const { getFirestore, doc, getDoc, setDoc, updateDoc } =
     await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+  const { getStorage, ref: storageRef, uploadBytes, getDownloadURL } =
+    await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js");
+  const { getDatabase, ref: dbRef, push, onValue } =
+    await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js");
   const app = initializeApp(FIREBASE_CONFIG);
   const googleProvider = new GoogleAuthProvider();
   firebaseAuth = { instance: getAuth(app), onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInWithPopup, signInWithRedirect, getRedirectResult, googleProvider };
-  firebaseFirestore = { instance: getFirestore(app), doc, getDoc, setDoc };
+  firebaseFirestore = { instance: getFirestore(app), doc, getDoc, setDoc, updateDoc };
+  firebaseStorage = { instance: getStorage(app), storageRef, uploadBytes, getDownloadURL };
+  firebaseDatabase = { instance: getDatabase(app), dbRef, push, onValue };
 }
 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
@@ -40,7 +46,8 @@ const styles = `
   }
   html,body,#root{min-height:100vh;background:var(--black);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px}
   .app{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:0 auto;background:var(--dark);position:relative}
-  .screen{flex:1;padding:20px 18px 90px;overflow-y:auto}
+  .screen{flex:1;overflow-y:auto}
+  .screen-inner{padding:20px 18px 90px}
 
   /* TOPBAR */
   .topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 12px;background:var(--dark);position:sticky;top:0;z-index:10;border-bottom:1px solid var(--border)}
@@ -174,16 +181,62 @@ const styles = `
   .order-item:last-child{border-bottom:none}
   .order-total-row{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
 
-  /* HOME */
-  .home-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px}
+  /* HERO (home.html style) */
+  .hero{position:relative;height:220px;overflow:hidden}
+  .hero-img{width:100%;height:100%;object-fit:cover;display:block}
+  .hero-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(8,10,15,.3) 0%,rgba(8,10,15,.85) 100%)}
+  .hero-content{position:absolute;bottom:0;left:0;right:0;padding:20px 20px 24px}
+  .brand-mark{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .brand-dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+  .brand-name{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:3px;color:#fff}
+  .brand-name span{color:var(--accent)}
+  .hero-tagline{font-size:12px;color:rgba(255,255,255,.6);letter-spacing:1px;text-transform:uppercase}
+  /* PROMO STRIP */
+  .promo-strip{display:flex;align-items:center;justify-content:space-between;background:linear-gradient(90deg,var(--accent2),#c0320a);padding:14px 18px;color:#fff;cursor:pointer;border:none;width:100%;font-family:'DM Sans',sans-serif;text-align:left}
+  .promo-strip-text{font-weight:700;font-size:15px}
+  .promo-strip-sub{font-size:12px;opacity:.85;margin-top:1px}
+  .promo-strip-arrow{font-size:22px;font-weight:700}
+  /* HOME SECTION LABELS */
+  .section-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;padding:18px 18px 0}
+  .section-title{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:1px;padding:2px 18px 12px;color:var(--text)}
+  /* SUPER GRID (home.html style) */
+  .super-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 18px 18px}
+  .super-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 14px;display:flex;flex-direction:column;align-items:flex-start;gap:6px;cursor:pointer;transition:border-color .2s,transform .15s;color:var(--text)}
+  .super-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+  .super-icon{font-size:26px}
+  .super-title{font-weight:700;font-size:14px}
+  .super-sub{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px}
+  /* HOME GRID legacy */
+  .home-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px;padding:0 18px}
   .home-tile{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:border-color .2s,transform .15s;text-align:center}
   .home-tile:hover{border-color:var(--accent);transform:translateY(-2px)}
   .tile-icon{font-size:28px}
   .tile-label{font-weight:600;font-size:13px}
   .tile-sub{font-size:11px;color:var(--muted)}
+  /* AUTH HERO (login.html style) */
+  .auth-hero{position:relative;height:260px;overflow:hidden;flex-shrink:0}
+  .auth-hero img{width:100%;height:100%;object-fit:cover;display:block}
+  .auth-hero-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(8,10,15,.2),rgba(8,10,15,.9))}
+  .auth-hero-logo{position:absolute;bottom:0;left:0;right:0;padding:20px 24px 24px;text-align:center}
+  .auth-logo-text{font-family:'Bebas Neue',sans-serif;font-size:48px;letter-spacing:5px;color:var(--accent);line-height:1}
+  .auth-logo-text span{color:#fff}
+  .auth-logo-sub{font-size:12px;color:rgba(255,255,255,.6);letter-spacing:2px;text-transform:uppercase;margin-top:2px}
+  .auth-body{background:var(--dark);flex:1;padding:28px 24px 40px;border-radius:20px 20px 0 0;margin-top:-16px;position:relative}
+  /* SUPPORT / CHAT */
+  .chat-box{height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:12px;background:var(--card);display:flex;flex-direction:column;gap:6px}
+  .chat-msg{padding:8px 12px;border-radius:10px;max-width:85%;font-size:14px;line-height:1.4}
+  .chat-msg-mine{background:var(--accent);color:#000;align-self:flex-end;border-bottom-right-radius:2px}
+  .chat-msg-other{background:var(--card2);color:var(--text);align-self:flex-start;border-bottom-left-radius:2px;border:1px solid var(--border)}
+  .chat-msg-user{font-weight:700;font-size:11px;margin-bottom:2px;opacity:.7}
+  .chat-msg-time{font-size:10px;opacity:.6;margin-top:2px;text-align:right}
+  .chat-input-row{display:flex;gap:8px}
+  .chat-input-row .input{flex:1}
+  .chat-send-btn{padding:12px 16px;background:var(--accent);color:#000;border:none;border-radius:var(--radius-sm);font-weight:700;cursor:pointer;font-size:20px;flex-shrink:0}
+  /* PROFILE EDIT */
+  .avatar-edit-btn{position:absolute;bottom:0;right:0;background:var(--accent);color:#000;border:none;border-radius:50%;width:26px;height:26px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px #0006}
 
   /* AUTH */
-  .auth-screen{min-height:100vh;background:var(--black);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px}
+  .auth-screen{min-height:100vh;background:var(--black);display:flex;flex-direction:column;align-items:stretch;overflow:hidden}
   .auth-logo{font-family:'Bebas Neue',sans-serif;font-size:56px;letter-spacing:4px;color:var(--accent);margin-bottom:2px}
   .auth-tag{font-size:13px;color:var(--muted);margin-bottom:36px;text-align:center}
   .auth-box{background:var(--dark);border:1px solid var(--border);border-radius:16px;padding:30px 26px;width:100%;max-width:400px}
@@ -292,6 +345,7 @@ const Icons = {
   Back: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>,
   X: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
   Logout: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
+  Chat: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
   Check: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>,
 };
 
@@ -370,10 +424,18 @@ function AuthScreen({ onLogin }) {
   };
 
   return (
-    <div className="auth-screen">
+    <div className="auth-screen" style={{minHeight:"100vh",display:"flex",flexDirection:"column",background:"var(--black)"}}>
       {toastEl}
-      <div className="auth-logo">AUTOSTORE</div>
-      <div className="auth-tag">Marketplace de autopeças com catálogo OEM</div>
+      {/* Hero com imagem real - login.html style */}
+      <div className="auth-hero">
+        <img src="https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=840&q=75&auto=format&fit=crop" alt="AutoStore" />
+        <div className="auth-hero-overlay" />
+        <div className="auth-hero-logo">
+          <div className="auth-logo-text">AUTO<span>STORE</span></div>
+          <div className="auth-logo-sub">Marketplace Automotivo</div>
+        </div>
+      </div>
+      <div className="auth-body">
       <div className="auth-box">
         <div className="auth-tabs">
           <button className={`auth-tab ${tab === "login" ? "active" : ""}`} onClick={() => setTab("login")}>Entrar</button>
@@ -411,6 +473,7 @@ function AuthScreen({ onLogin }) {
           </>
         )}
       </div>
+      </div>
     </div>
   );
 }
@@ -419,48 +482,71 @@ function AuthScreen({ onLogin }) {
 function HomeScreen({ user, setScreen, cartCount }) {
   const isSeller = user?.type === "seller";
   return (
-    <div className="screen">
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 2 }}>Olá, {user?.name?.split(" ")[0]} 👋</div>
-        <div className="page-title">O que você precisa?</div>
-      </div>
-      <div className="home-grid">
-        <div className="home-tile" onClick={() => setScreen("search")}>
-          <div className="tile-icon">🔍</div>
-          <div className="tile-label">Buscar por Placa</div>
-          <div className="tile-sub">Peças para seu veículo</div>
-        </div>
-        <div className="home-tile" onClick={() => setScreen("marketplace")}>
-          <div className="tile-icon">🛒</div>
-          <div className="tile-label">Marketplace</div>
-          <div className="tile-sub">Todas as peças</div>
-        </div>
-        <div className="home-tile" onClick={() => setScreen("orders")}>
-          <div className="tile-icon">📦</div>
-          <div className="tile-label">Meus Pedidos</div>
-          <div className="tile-sub">Histórico de compras</div>
-        </div>
-        {isSeller ? (
-          <div className="home-tile" onClick={() => setScreen("sell")}>
-            <div className="tile-icon">💰</div>
-            <div className="tile-label">Anunciar Peça</div>
-            <div className="tile-sub">Vender pelo OEM</div>
+    <div className="screen" style={{paddingBottom:90}}>
+      {/* Hero com imagem real - home.html style */}
+      <div className="hero">
+        <img className="hero-img"
+          src="https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=840&q=75&auto=format&fit=crop"
+          alt="Oficina mecânica" />
+        <div className="hero-overlay" />
+        <div className="hero-content">
+          <div className="brand-mark">
+            <div className="brand-dot" />
+            <div className="brand-name">AUTO<span>STORE</span></div>
           </div>
-        ) : (
-          <div className="home-tile" onClick={() => setScreen("profile")}>
-            <div className="tile-icon">👤</div>
-            <div className="tile-label">Meu Perfil</div>
-            <div className="tile-sub">Conta e configurações</div>
+          <div className="hero-tagline">Olá, {user?.name?.split(" ")[0]} 👋 · Marketplace Automotivo</div>
+        </div>
+      </div>
+
+      {/* Promo strip - home.html style */}
+      <button className="promo-strip" onClick={() => setScreen("search")}>
+        <div>
+          <div className="promo-strip-text">Buscar pela placa</div>
+          <div className="promo-strip-sub">Encontre a peça certa para seu veículo</div>
+        </div>
+        <div className="promo-strip-arrow">→</div>
+      </button>
+
+      <div className="section-label">Navegação</div>
+      <div className="section-title">O que você precisa?</div>
+
+      <div className="super-grid">
+        <div className="super-card" onClick={() => setScreen("search")}>
+          <div className="super-icon">🚗</div>
+          <div className="super-title">Buscar Veículo</div>
+          <div className="super-sub">Por placa ou modelo</div>
+        </div>
+        <div className="super-card" onClick={() => setScreen("marketplace")}>
+          <div className="super-icon">🔧</div>
+          <div className="super-title">Catálogo OEM</div>
+          <div className="super-sub">Referências originais</div>
+        </div>
+        <div className="super-card" onClick={() => setScreen("marketplace")}>
+          <div className="super-icon">🛒</div>
+          <div className="super-title">Marketplace</div>
+          <div className="super-sub">Comprar peças <span className="badge badge-new" style={{fontSize:9,padding:"2px 6px"}}>Novo</span></div>
+        </div>
+        <div className="super-card" onClick={() => setScreen("orders")}>
+          <div className="super-icon">📦</div>
+          <div className="super-title">Meus Pedidos</div>
+          <div className="super-sub">Acompanhar entregas</div>
+        </div>
+        {isSeller && (
+          <div className="super-card" onClick={() => setScreen("sell")}>
+            <div className="super-icon">💰</div>
+            <div className="super-title">Anunciar Peça</div>
+            <div className="super-sub">Vender pelo OEM</div>
           </div>
         )}
-      </div>
-      <div className="card" style={{ background: "linear-gradient(135deg,#131929,#0c1020)", borderColor: "#f5a62325" }}>
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <div style={{ fontSize: 30 }}>⚡</div>
-          <div>
-            <div style={{ fontWeight: 600, marginBottom: 2 }}>Catálogo OEM Integrado</div>
-            <div style={{ fontSize: 12, color: "var(--muted)" }}>Número OEM garante compatibilidade 100%. Sem erro na compra, sem devolução.</div>
-          </div>
+        <div className="super-card" onClick={() => setScreen("profile")}>
+          <div className="super-icon">👤</div>
+          <div className="super-title">Perfil</div>
+          <div className="super-sub">Conta e anúncios</div>
+        </div>
+        <div className="super-card" onClick={() => setScreen("support")}>
+          <div className="super-icon">💬</div>
+          <div className="super-title">Suporte</div>
+          <div className="super-sub">Central de ajuda</div>
         </div>
       </div>
     </div>
@@ -500,7 +586,7 @@ function SearchScreen({ onVehicleFound }) {
   };
 
   return (
-    <div className="screen">
+    <div className="screen screen-inner">
       {toastEl}
       <div className="page-title">Buscar Peças</div>
       <div className="page-sub">Encontre peças compatíveis com seu veículo</div>
@@ -555,7 +641,7 @@ function ResultsScreen({ vehicleData, onBack, onSelectPart }) {
   });
 
   return (
-    <div className="screen">
+    <div className="screen screen-inner">
       <button className="back-btn" onClick={onBack}><Icons.Back /> Voltar</button>
       <div className="vehicle-banner">
         {plate && <div className="veh-plate">{plate}</div>}
@@ -634,7 +720,7 @@ function MarketplaceScreen({ onSelectPart }) {
   });
 
   return (
-    <div className="screen">
+    <div className="screen screen-inner">
       <div className="page-title">Marketplace</div>
       <div className="page-sub">Autopeças no catálogo OEM</div>
       <div className="filter-section">
@@ -715,7 +801,7 @@ function PartDetailScreen({ part, onBack, onAddToCart }) {
   };
 
   return (
-    <div className="screen">
+    <div className="screen screen-inner">
       {toastEl}
       <button className="back-btn" onClick={onBack}><Icons.Back /> Voltar</button>
 
@@ -861,7 +947,7 @@ function CartScreen({ cart, onUpdateQty, onRemove, onCheckout, loading }) {
   const totalItems = cart.reduce((s, i) => s + i.quantity, 0);
 
   if (cart.length === 0) return (
-    <div className="screen">
+    <div className="screen screen-inner">
       <div className="page-title">Carrinho</div>
       <div className="empty" style={{ paddingTop: 80 }}>
         <div className="empty-icon">🛒</div>
@@ -872,7 +958,7 @@ function CartScreen({ cart, onUpdateQty, onRemove, onCheckout, loading }) {
   );
 
   return (
-    <div className="screen">
+    <div className="screen screen-inner">
       <div className="page-title">Carrinho</div>
       <div className="page-sub">{totalItems} {totalItems === 1 ? "item" : "itens"}</div>
 
@@ -962,7 +1048,7 @@ function OrdersScreen({ user }) {
   }, []);
 
   return (
-    <div className="screen">
+    <div className="screen screen-inner">
       {toastEl}
       {reviewing && (
         <div style={{position:"fixed",inset:0,background:"#000a",zIndex:100,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={() => setReviewing(null)}>
@@ -1116,7 +1202,7 @@ function SellScreen({ user }) {
   };
 
   return (
-    <div className="screen">
+    <div className="screen screen-inner">
       {toastEl}
       <div className="page-title">Anunciar Peça</div>
       <div className="page-sub">Venda pelo catálogo OEM — sem duplicidade</div>
@@ -1199,15 +1285,67 @@ function ProfileScreen({ user, onLogout, onUpdateUser }) {
   const [myParts, setMyParts] = useState([]);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [photo, setPhoto] = useState(user?.photo || null);
+  const [name, setName] = useState(user?.name || "");
+  const [bio, setBio] = useState(user?.bio || "");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [time, setTime] = useState("");
+  const [location, setLocation] = useState("");
   const isSeller = user?.type === "seller";
   const initials = (user?.name || "U").split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
   const photoInputRef = useRef();
   const [show, toastEl] = useToast();
 
+  // Clock - profile.js style
+  useEffect(() => {
+    const tick = () => setTime(new Date().toLocaleTimeString("pt-BR"));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Geolocation - profile.js style
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(pos => {
+        setLocation(`${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
+      });
+    }
+  }, []);
+
+  // Load profile from Firestore
+  useEffect(() => {
+    const load = async () => {
+      await initFirebase();
+      const snap = await firebaseFirestore.getDoc(firebaseFirestore.doc(firebaseFirestore.instance, "users", user.uid));
+      if (snap.exists()) {
+        const d = snap.data();
+        setName(d.name || "");
+        setBio(d.bio || "");
+        if (d.photo) setPhoto(d.photo);
+      }
+    };
+    load();
+  }, []);
+
   useEffect(() => {
     if (!isSeller) return;
     fetch(`${API}/marketplaceParts?sellerId=${user.uid}`).then(r => r.json()).then(d => setMyParts(d.data || [])).catch(() => {});
   }, []);
+
+  const saveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      await initFirebase();
+      await firebaseFirestore.setDoc(
+        firebaseFirestore.doc(firebaseFirestore.instance, "users", user.uid),
+        { name, bio },
+        { merge: true }
+      );
+      onUpdateUser?.({ ...user, name, bio });
+      show("Perfil salvo! ✅", "success");
+    } catch { show("Erro ao salvar perfil"); }
+    finally { setSavingProfile(false); }
+  };
 
   const uploadPhoto = async (e) => {
     const file = e.target.files?.[0];
@@ -1218,18 +1356,22 @@ function ProfileScreen({ user, onLogout, onUpdateUser }) {
       const token = await firebaseAuth.instance.currentUser?.getIdToken();
       const fd = new FormData();
       fd.append("photo", file);
-      const res = await fetch(`${API}/users/photo`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
-        body: fd,
-      });
+      const res = await fetch(`${API}/users/photo`, { method: "PATCH", headers: { Authorization: `Bearer ${token}` }, body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
       setPhoto(data.data.photo);
       onUpdateUser?.({ ...user, photo: data.data.photo });
       show("Foto atualizada! 🎉", "success");
-    } catch (e) {
-      show(e.message || "Erro ao atualizar foto");
+    } catch {
+      try {
+        const sRef = firebaseStorage.storageRef(firebaseStorage.instance, `profiles/${user.uid}`);
+        await firebaseStorage.uploadBytes(sRef, file);
+        const url = await firebaseStorage.getDownloadURL(sRef);
+        setPhoto(url);
+        await firebaseFirestore.updateDoc(firebaseFirestore.doc(firebaseFirestore.instance, "users", user.uid), { photo: url });
+        onUpdateUser?.({ ...user, photo: url });
+        show("Foto atualizada! 🎉", "success");
+      } catch { show("Erro ao atualizar foto"); }
     } finally { setPhotoLoading(false); e.target.value = ""; }
   };
 
@@ -1240,10 +1382,10 @@ function ProfileScreen({ user, onLogout, onUpdateUser }) {
   };
 
   return (
-    <div className="screen">
+    <div className="screen" style={{padding:"20px 18px 90px"}}>
       {toastEl}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 8, marginBottom: 26 }}>
-        <div className="profile-avatar-wrap" onClick={() => photoInputRef.current?.click()}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 8, marginBottom: 22 }}>
+        <div style={{position:"relative",cursor:"pointer",marginBottom:12}} onClick={() => photoInputRef.current?.click()}>
           {photo
             ? <img src={photo} alt="" style={{width:80,height:80,borderRadius:"50%",objectFit:"cover"}} />
             : <div className="profile-avatar">{initials}</div>
@@ -1264,21 +1406,29 @@ function ProfileScreen({ user, onLogout, onUpdateUser }) {
         </div>
       )}
 
+      {/* Editar perfil - profile.html style */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".6px", marginBottom: 14 }}>Editar Perfil</div>
+        <div className="input-wrap"><label className="label">Nome</label><input className="input" value={name} onChange={e => setName(e.target.value)} /></div>
+        <div className="input-wrap"><label className="label">Bio</label><textarea className="input" style={{resize:"none"}} rows={3} value={bio} onChange={e => setBio(e.target.value)} placeholder="Fale um pouco sobre você..." /></div>
+        <button className="btn btn-primary" onClick={saveProfile} disabled={savingProfile}>{savingProfile ? "Salvando..." : "Salvar Perfil"}</button>
+      </div>
+
       <div className="card" style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".6px", marginBottom: 12 }}>Dados da conta</div>
         {[["Email", user?.email], ["Tipo", isSeller ? "Vendedor" : "Comprador"], isSeller ? ["Verificação", user?.sellerVerified ? "✅ Verificado" : "⏳ Pendente"] : null].filter(Boolean).map(([k, v]) => (
           <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 14, marginBottom: 8 }}>
-            <span style={{ color: "var(--muted)" }}>{k}</span>
-            <span>{v}</span>
+            <span style={{ color: "var(--muted)" }}>{k}</span><span>{v}</span>
           </div>
         ))}
+        {time && <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, marginBottom: 8 }}><span style={{ color: "var(--muted)" }}>Hora local</span><span>{time}</span></div>}
+        {location && <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}><span style={{ color: "var(--muted)" }}>Localização</span><span style={{fontFamily:"monospace",fontSize:11}}>{location}</span></div>}
       </div>
 
       <button className="btn btn-danger" onClick={logout}><Icons.Logout /> Sair da conta</button>
     </div>
   );
 }
-
 
 // ─── PAYMENT RESULT SCREENS ──────────────────────────────────────────────────
 function PaymentSuccessScreen({ setScreen, clearCart }) {
@@ -1351,6 +1501,73 @@ function PaymentPendingScreen({ setScreen }) {
       <button className="btn btn-secondary" style={{ maxWidth: 240, marginTop: 10 }} onClick={() => setScreen("home")}>
         Voltar ao Início
       </button>
+    </div>
+  );
+}
+
+// ─── SUPPORT (chat real Firebase - support.html + chat.js) ──────────────────
+function SupportScreen({ user }) {
+  const [messages, setMessages] = useState([]);
+  const [msg, setMsg] = useState("");
+  const chatBoxRef = useRef(null);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    let unsubscribe;
+    const load = async () => {
+      await initFirebase();
+      const ref = firebaseDatabase.dbRef(firebaseDatabase.instance, "chat/global");
+      unsubscribe = firebaseDatabase.onValue(ref, (snapshot) => {
+        const list = [];
+        snapshot.forEach(child => list.push({ id: child.key, ...child.val() }));
+        setMessages(list);
+        setTimeout(() => {
+          if (chatBoxRef.current) chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
+        }, 50);
+      });
+    };
+    load();
+    return () => unsubscribe?.();
+  }, []);
+
+  const sendMessage = async () => {
+    if (!msg.trim()) return;
+    await initFirebase();
+    const ref = firebaseDatabase.dbRef(firebaseDatabase.instance, "chat/global");
+    await firebaseDatabase.push(ref, { user: user?.email || "Anônimo", text: msg.trim(), time: Date.now() });
+    setMsg("");
+    inputRef.current?.focus();
+  };
+
+  return (
+    <div className="screen" style={{padding:"20px 18px 90px"}}>
+      <div className="page-title">Suporte AutoStore</div>
+      <div className="page-sub">Canal de atendimento em tempo real</div>
+      <div ref={chatBoxRef} className="chat-box">
+        {messages.length === 0 && (
+          <div style={{textAlign:"center",color:"var(--muted)",fontSize:13,margin:"auto"}}>
+            Nenhuma mensagem ainda. Diga olá! 👋
+          </div>
+        )}
+        {messages.map((m) => {
+          const isMine = m.user === user?.email;
+          const time = new Date(m.time).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+          return (
+            <div key={m.id} style={{display:"flex",flexDirection:"column",alignItems:isMine?"flex-end":"flex-start"}}>
+              <div className={`chat-msg ${isMine ? "chat-msg-mine" : "chat-msg-other"}`}>
+                {!isMine && <div className="chat-msg-user">{m.user}</div>}
+                {m.text}
+                <div className="chat-msg-time">{time}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="chat-input-row">
+        <input ref={inputRef} className="input" placeholder="Digite sua mensagem..." value={msg}
+          onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendMessage()} />
+        <button className="chat-send-btn" onClick={sendMessage}>➤</button>
+      </div>
     </div>
   );
 }
@@ -1531,6 +1748,7 @@ export default function App() {
       {screen === "cart" && <CartScreen cart={cart} onUpdateQty={updateQty} onRemove={removeFromCart} onCheckout={checkout} loading={cartLoading} />}
       {screen === "orders" && <OrdersScreen user={user} />}
       {screen === "sell" && isSeller && <SellScreen user={user} />}
+      {screen === "support" && <SupportScreen user={user} />}
       {screen === "profile" && <ProfileScreen user={user} onLogout={() => setUser(null)} onUpdateUser={setUser} />}
       {screen === "payment_success" && <PaymentSuccessScreen setScreen={setScreen} clearCart={clearCart} />}
       {screen === "payment_failure" && <PaymentFailureScreen setScreen={setScreen} />}

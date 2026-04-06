@@ -338,6 +338,217 @@ const styles = `
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 const fmt = n => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+// ─── SISTEMA DE PLANOS ────────────────────────────────────────────────────────
+// Campos no Firestore do usuário:
+//   type: "buyer" | "seller"
+//   plan: "free" | "premium"          ← novo
+//   planExpiresAt: ISO string | null   ← novo
+//   isAdmin: true | undefined
+//
+// Regras:
+//   Comprador FREE    → catálogo OEM, marketplace (sem busca por placa)
+//   Comprador PREMIUM → tudo acima + busca placa/chassi + orientações técnicas
+//   Vendedor FREE     → pode anunciar, anúncios vão para moderação
+//   Vendedor PREMIUM  → anúncios aprovados direto + busca placa/chassi completa
+
+function getPlan(user) {
+  if (!user) return { type: null, plan: "free", isPremium: false, isSeller: false, isAdmin: false };
+  const plan = user.plan || "free";
+  const expired = user.planExpiresAt && new Date(user.planExpiresAt) < new Date();
+  const isPremium = plan === "premium" && !expired;
+  return {
+    type: user.type || "buyer",
+    plan: isPremium ? "premium" : "free",
+    isPremium,
+    isSeller: user.type === "seller",
+    isAdmin: !!user.isAdmin,
+    canSearchByPlate: isPremium,                            // Comprador Premium + Vendedor Premium
+    canPostDirect: isPremium && user.type === "seller",     // Vendedor Premium → aprovação direta
+    planExpiresAt: user.planExpiresAt || null,
+  };
+}
+
+// Badge visual do plano
+function PlanBadge({ plan, style = {} }) {
+  if (plan === "premium") {
+    return (
+      <span style={{
+        display: "inline-flex", alignItems: "center", gap: 3,
+        background: "linear-gradient(90deg,#f59e0b,#d97706)",
+        color: "#000", borderRadius: 99, fontSize: 9, fontWeight: 800,
+        padding: "2px 8px", fontFamily: "'Barlow Condensed',sans-serif",
+        letterSpacing: 1, textTransform: "uppercase", ...style
+      }}>⭐ PREMIUM</span>
+    );
+  }
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 3,
+      background: "var(--card2)", color: "var(--muted)", border: "1px solid var(--border)",
+      borderRadius: 99, fontSize: 9, fontWeight: 700,
+      padding: "2px 8px", fontFamily: "'Barlow Condensed',sans-serif",
+      letterSpacing: 1, textTransform: "uppercase", ...style
+    }}>FREE</span>
+  );
+}
+
+// Tela de upgrade — bloqueio suave com CTA
+function PremiumGate({ feature, onUpgrade, onBack }) {
+  return (
+    <div className="screen screen-inner">
+      <button className="back-btn" onClick={onBack}><Icons.Back /> Voltar</button>
+      <div style={{ textAlign: "center", padding: "30px 10px" }}>
+        <div style={{ fontSize: 56, marginBottom: 16 }}>⭐</div>
+        <div className="page-title" style={{ color: "var(--orange)", marginBottom: 8 }}>Recurso Premium</div>
+        <div style={{ fontSize: 14, color: "var(--muted2)", lineHeight: 1.6, marginBottom: 28, maxWidth: 300, margin: "0 auto 28px" }}>
+          {feature}
+        </div>
+        {/* Comparativo FREE vs PREMIUM */}
+        <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: 18, marginBottom: 20, textAlign: "left" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 1, fontFamily: "'Barlow Condensed',sans-serif" }}>FREE</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#f59e0b", textTransform: "uppercase", letterSpacing: 1, fontFamily: "'Barlow Condensed',sans-serif" }}>⭐ PREMIUM</div>
+          </div>
+          {[
+            ["Catálogo OEM", "Catálogo OEM"],
+            ["Marketplace", "Marketplace"],
+            ["✗ Busca por placa", "✅ Busca por placa"],
+            ["✗ Busca por chassi", "✅ Busca por chassi"],
+            ["✗ Orientações técnicas", "✅ Orientações técnicas"],
+            ["✗ Peças mais quebradas", "✅ Peças mais quebradas"],
+          ].map(([free, prem], i) => (
+            <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, padding: "6px 0", borderTop: i > 0 ? "1px solid var(--border)" : "none" }}>
+              <div style={{ fontSize: 12, color: free.startsWith("✗") ? "var(--muted)" : "var(--text)" }}>{free}</div>
+              <div style={{ fontSize: 12, color: prem.startsWith("✅") ? "var(--success)" : "var(--text)", fontWeight: prem.startsWith("✅") ? 600 : 400 }}>{prem}</div>
+            </div>
+          ))}
+        </div>
+        <button className="btn btn-primary" style={{ animation: "glowPulse 2s ease-in-out infinite" }} onClick={onUpgrade}>
+          ⭐ Assinar Premium
+        </button>
+        <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 12 }}>
+          Planos a partir de R$ 29,90/mês
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Tela de upgrade de plano (Assinatura)
+function UpgradeScreen({ user, onBack, onUpgradeSuccess }) {
+  const [loading, setLoading] = useState(null);
+  const [show, toastEl] = useToast();
+  const { isSeller } = getPlan(user);
+
+  const plans = isSeller
+    ? [
+        {
+          id: "seller_premium",
+          label: "Vendedor Premium",
+          price: "R$ 59,90/mês",
+          color: "#f59e0b",
+          features: [
+            "✅ Anúncios aprovados direto (sem moderação)",
+            "✅ Busca por placa e chassi completa",
+            "✅ Histórico técnico do veículo",
+            "✅ Peças que mais quebram por modelo",
+            "✅ Destaque nos resultados",
+            "✅ Sem limite de anúncios",
+          ],
+        },
+      ]
+    : [
+        {
+          id: "buyer_premium",
+          label: "Comprador Premium",
+          price: "R$ 29,90/mês",
+          color: "#f59e0b",
+          features: [
+            "✅ Busca por placa e chassi",
+            "✅ Orientações técnicas completas",
+            "✅ Peças mais comuns por veículo",
+            "✅ Histórico de falhas do modelo",
+            "✅ Acesso prioritário ao suporte",
+          ],
+        },
+      ];
+
+  const handleUpgrade = async (planId) => {
+    setLoading(planId);
+    try {
+      // Aqui você integra com Mercado Pago Subscriptions ou outro gateway
+      // Por ora: simulação de upgrade (substitua pela chamada real de pagamento)
+      await initFirebase();
+      const token = await firebaseAuth.instance.currentUser?.getIdToken();
+      const res = await fetch(`${API}/payments/subscribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ planId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Redireciona para checkout de assinatura
+        if (data.data?.initPoint) {
+          window.location.href = data.data.initPoint;
+          return;
+        }
+      }
+      // Fallback: atualiza localmente para demo
+      await firebaseFirestore.setDoc(
+        firebaseFirestore.doc(firebaseFirestore.instance, "users", user.uid),
+        { plan: "premium", planExpiresAt: new Date(Date.now() + 30 * 86400000).toISOString() },
+        { merge: true }
+      );
+      onUpgradeSuccess();
+      show("🎉 Premium ativado!", "success");
+    } catch {
+      show("Erro ao processar. Tente novamente.");
+    } finally { setLoading(null); }
+  };
+
+  return (
+    <div className="screen screen-inner">
+      {toastEl}
+      <button className="back-btn" onClick={onBack}><Icons.Back /> Voltar</button>
+      <div className="page-title">Assinar Premium</div>
+      <div className="page-sub">Desbloqueie todos os recursos</div>
+
+      {plans.map(plan => (
+        <div key={plan.id} style={{
+          background: "var(--card)", border: `1.5px solid ${plan.color}40`,
+          borderRadius: "var(--radius)", padding: 20, marginBottom: 16,
+          position: "relative", overflow: "hidden"
+        }}>
+          <div style={{ position: "absolute", top: -20, right: -20, width: 80, height: 80, background: `radial-gradient(circle,${plan.color}25 0%,transparent 70%)`, borderRadius: "50%" }} />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <div>
+              <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 800, fontSize: 20, letterSpacing: 1, textTransform: "uppercase" }}>
+                ⭐ {plan.label}
+              </div>
+              <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 26, fontWeight: 700, color: plan.color, marginTop: 2 }}>{plan.price}</div>
+            </div>
+          </div>
+          {plan.features.map((f, i) => (
+            <div key={i} style={{ fontSize: 13, color: "var(--text)", marginBottom: 7, lineHeight: 1.4 }}>{f}</div>
+          ))}
+          <button
+            className="btn btn-primary"
+            style={{ marginTop: 18, background: plan.color, color: "#000" }}
+            onClick={() => handleUpgrade(plan.id)}
+            disabled={loading === plan.id}
+          >
+            {loading === plan.id ? "Processando..." : `Assinar ${plan.label}`}
+          </button>
+        </div>
+      ))}
+
+      <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: 14, fontSize: 12, color: "var(--muted)", lineHeight: 1.6 }}>
+        💳 Pagamento seguro via Mercado Pago · Cancele a qualquer momento · Sem fidelidade
+      </div>
+    </div>
+  );
+}
+
 function Toast({ msg, type, onDone }) {
   useEffect(() => { const t = setTimeout(onDone, 2800); return () => clearTimeout(t); }, []);
   return <div className={`toast ${type}`}>{msg}</div>;
@@ -383,6 +594,7 @@ const Icons = {
   Logout: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
   Chat: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
   Check: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>,
+  Crown: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
 };
 
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
@@ -402,11 +614,13 @@ function AuthScreen({ onLogin }) {
         email: cred.user.email,
         photo: cred.user.photoURL || null,
         type: "buyer",
+        plan: "free",
+        planExpiresAt: null,
         sellerVerified: false,
         active: true,
         createdAt: new Date().toISOString(),
       });
-      onLogin({ uid: cred.user.uid, email: cred.user.email, name: cred.user.displayName, photo: cred.user.photoURL, type: "buyer" });
+      onLogin({ uid: cred.user.uid, email: cred.user.email, name: cred.user.displayName, photo: cred.user.photoURL, type: "buyer", plan: "free" });
     } else {
       onLogin({ uid: cred.user.uid, email: cred.user.email, ...snap.data() });
     }
@@ -451,7 +665,7 @@ function AuthScreen({ onLogin }) {
       await initFirebase();
       const cred = await firebaseAuth.createUserWithEmailAndPassword(firebaseAuth.instance, form.email, form.password);
       await firebaseFirestore.setDoc(firebaseFirestore.doc(firebaseFirestore.instance, "users", cred.user.uid),
-        { name: form.name, email: form.email, type: form.type, sellerVerified: false, active: true, createdAt: new Date().toISOString() });
+        { name: form.name, email: form.email, type: form.type, plan: "free", planExpiresAt: null, sellerVerified: false, active: true, createdAt: new Date().toISOString() });
       show("Conta criada! Faça login.", "success");
       setTab("login");
     } catch (e) {
@@ -521,10 +735,9 @@ function AuthScreen({ onLogin }) {
 
 // ─── HOME ─────────────────────────────────────────────────────────────────────
 function HomeScreen({ user, setScreen, cartCount }) {
-  const isSeller = user?.type === "seller";
+  const { isPremium, isSeller, isAdmin } = getPlan(user);
   return (
     <div className="screen" style={{paddingBottom:90}}>
-      {/* Hero com imagem real - home.html style */}
       <div className="hero">
         <img className="hero-img"
           style={{animationName:"heroZoom",animationDuration:"10s",animationTimingFunction:"ease-out",animationFillMode:"forwards"}}
@@ -536,73 +749,130 @@ function HomeScreen({ user, setScreen, cartCount }) {
             <div className="brand-dot" />
             <div className="brand-name">AUTO<span>STORE</span></div>
           </div>
-          <div className="hero-tagline">Olá, {user?.name?.split(" ")[0]} 👋 · Marketplace Automotivo</div>
+          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+            <div className="hero-tagline">Olá, {user?.name?.split(" ")[0]} 👋</div>
+            <PlanBadge plan={isPremium ? "premium" : "free"} />
+          </div>
         </div>
       </div>
 
-      {/* Promo strip - home.html style */}
-      <button className="promo-strip" onClick={() => setScreen("search")}>
-        <div>
-          <div className="promo-strip-text">Buscar pela placa</div>
-          <div className="promo-strip-sub">Encontre a peça certa para seu veículo</div>
-        </div>
-        <div className="promo-strip-arrow">→</div>
-      </button>
+      {/* Promo strip — FREE vê upgrade, PREMIUM vê a busca por placa */}
+      {isPremium ? (
+        <button className="promo-strip" onClick={() => setScreen("search")}>
+          <div>
+            <div className="promo-strip-text">⭐ Buscar pela placa ou chassi</div>
+            <div className="promo-strip-sub">Encontre a peça certa para seu veículo</div>
+          </div>
+          <div className="promo-strip-arrow">→</div>
+        </button>
+      ) : (
+        <button className="promo-strip" style={{background:"linear-gradient(90deg,#1a1a1a,#111)"}} onClick={() => setScreen("upgrade")}>
+          <div>
+            <div className="promo-strip-text" style={{color:"#f59e0b"}}>⭐ Desbloqueie a busca por placa</div>
+            <div className="promo-strip-sub" style={{color:"var(--muted)"}}>Assine o Premium e encontre a peça certa</div>
+          </div>
+          <div className="promo-strip-arrow" style={{color:"#f59e0b"}}>→</div>
+        </button>
+      )}
 
       <div className="section-label">Navegação</div>
       <div className="section-title">O que você precisa?</div>
 
       <div className="super-grid">
-        <div className="super-card anim-fade-up delay-1" onClick={() => setScreen("search")}>
-          <div className="super-icon">🚗</div>
-          <div className="super-title">Buscar Veículo</div>
-          <div className="super-sub">Por placa ou modelo</div>
+        {/* Busca por placa — bloqueada para FREE */}
+        <div className="super-card anim-fade-up delay-1" onClick={() => setScreen(isPremium ? "search" : "upgrade")}
+          style={!isPremium ? {opacity:.75} : {}}>
+          <div className="super-icon">{isPremium ? "🚗" : "🔒"}</div>
+          <div className="super-title">Busca por Placa</div>
+          <div className="super-sub">{isPremium ? "Por placa ou chassi" : <span style={{color:"#f59e0b"}}>⭐ Premium</span>}</div>
         </div>
+
+        {/* Catálogo OEM — livre para todos */}
         <div className="super-card anim-fade-up delay-2" onClick={() => setScreen("marketplace")}>
           <div className="super-icon">🔧</div>
           <div className="super-title">Catálogo OEM</div>
           <div className="super-sub">Referências originais</div>
         </div>
+
+        {/* Marketplace — livre para todos */}
         <div className="super-card anim-fade-up delay-2" onClick={() => setScreen("marketplace")}>
           <div className="super-icon">🛒</div>
           <div className="super-title">Marketplace</div>
-          <div className="super-sub">Comprar peças <span className="badge badge-new" style={{fontSize:9,padding:"2px 6px"}}>Novo</span></div>
+          <div className="super-sub">Comprar peças</div>
         </div>
+
+        {/* Meus Pedidos — livre para todos */}
         <div className="super-card anim-fade-up delay-3" onClick={() => setScreen("orders")}>
           <div className="super-icon">📦</div>
           <div className="super-title">Meus Pedidos</div>
           <div className="super-sub">Acompanhar entregas</div>
         </div>
+
+        {/* Anunciar — só vendedores */}
         {isSeller && (
-          <div className="super-card anim-fade-up delay-4" onClick={() => setScreen("sell")}>
+          <div className="super-card anim-fade-up delay-4" onClick={() => setScreen("sell")}
+            style={{position:"relative"}}>
             <div className="super-icon">💰</div>
             <div className="super-title">Anunciar Peça</div>
-            <div className="super-sub">Vender pelo OEM</div>
+            <div className="super-sub">
+              {isPremium
+                ? <span style={{color:"var(--success)"}}>✅ Aprovação direta</span>
+                : <span style={{color:"var(--muted)"}}>Passa por moderação</span>}
+            </div>
+            {isPremium && <div style={{position:"absolute",top:10,right:10}}><PlanBadge plan="premium" /></div>}
           </div>
         )}
+
+        {/* Upgrade — visível só para FREE */}
+        {!isPremium && (
+          <div className="super-card anim-fade-up delay-4" onClick={() => setScreen("upgrade")}
+            style={{border:"1px solid #f59e0b40",background:"linear-gradient(135deg,#1a1a1a,#111)"}}>
+            <div className="super-icon">⭐</div>
+            <div className="super-title" style={{color:"#f59e0b"}}>Assinar Premium</div>
+            <div className="super-sub">Desbloquear tudo</div>
+          </div>
+        )}
+
+        {/* Perfil */}
         <div className="super-card anim-fade-up delay-4" onClick={() => setScreen("profile")}>
           <div className="super-icon">👤</div>
           <div className="super-title">Perfil</div>
           <div className="super-sub">Conta e anúncios</div>
         </div>
+
+        {/* Suporte */}
         <div className="super-card anim-fade-up delay-5" onClick={() => setScreen("support")}>
           <div className="super-icon">💬</div>
           <div className="super-title">Suporte</div>
           <div className="super-sub">Central de ajuda</div>
         </div>
+
+        {/* Admin — só admins */}
+        {isAdmin && (
+          <div className="super-card anim-fade-up delay-5" onClick={() => setScreen("admin_moderacao")}
+            style={{border:"1px solid #ef444440"}}>
+            <div className="super-icon">🛡️</div>
+            <div className="super-title">Moderação</div>
+            <div className="super-sub">Painel admin</div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 // ─── SEARCH ───────────────────────────────────────────────────────────────────
-function SearchScreen({ onVehicleFound }) {
+function SearchScreen({ user, onVehicleFound, onUpgrade }) {
+  const { isPremium } = getPlan(user);
   const [mode, setMode] = useState("plate");
   const [plate, setPlate] = useState("");
   const [manual, setManual] = useState({ brand: "", model: "", engineDisplacement: "", fuelType: "" });
   const [loading, setLoading] = useState(false);
   const [show, toastEl] = useToast();
   const set = k => e => setManual(f => ({ ...f, [k]: e.target.value }));
+
+  // FREE → só busca manual por catálogo (sem placa/chassi)
+  // PREMIUM → placa + chassi + busca manual completa
 
   const search = async (body) => {
     setLoading(true);
@@ -611,7 +881,7 @@ function SearchScreen({ onVehicleFound }) {
       const data = await res.json();
       if (!data.success) return show("Nenhuma peça encontrada para este veículo");
       const parts = Array.isArray(data.data) ? data.data : (data.data?.data || []);
-      onVehicleFound({ plate: body.plate, vehicle: data.vehicle || { brand: body.brand, model: body.model, engineDisplacement: body.engineDisplacement, fuelType: body.fuelType }, parts });
+      onVehicleFound({ plate: body.plate, vehicle: data.vehicle || { brand: body.brand, model: body.model, engineDisplacement: body.engineDisplacement, fuelType: body.fuelType }, parts, isPremium });
     } catch { show("Erro ao conectar com o servidor. Backend está rodando?"); }
     finally { setLoading(false); }
   };
@@ -630,37 +900,91 @@ function SearchScreen({ onVehicleFound }) {
   return (
     <div className="screen screen-inner">
       {toastEl}
-      <div className="page-title">Buscar Peças</div>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+        <div className="page-title" style={{marginBottom:0}}>Buscar Peças</div>
+        <PlanBadge plan={isPremium ? "premium" : "free"} />
+      </div>
       <div className="page-sub">Encontre peças compatíveis com seu veículo</div>
-      <div className="search-hero">
-        <div className="hero-title">🔍 BUSCA POR PLACA</div>
-        <div className="hero-sub">Digite a placa para identificar o veículo</div>
-        <input className="input input-plate" placeholder="ABC1D23" value={plate} maxLength={8}
-          onChange={e => setPlate(e.target.value.toUpperCase())} onKeyDown={e => e.key === "Enter" && byPlate()} />
-        <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={byPlate} disabled={loading}>
-          {loading ? "Buscando..." : "Buscar por Placa"}
-        </button>
-      </div>
-      <div className="toggle-link" onClick={() => setMode(m => m === "plate" ? "manual" : "plate")}>
-        {mode === "plate" ? <>Busca manual? <span>Clique aqui</span></> : <>Usar placa? <span>Clique aqui</span></>}
-      </div>
-      {mode === "manual" && (
-        <div style={{ marginTop: 18 }}>
-          <div className="divider" />
-          <div style={{ fontWeight: 600, marginBottom: 14 }}>Busca por dados do veículo</div>
-          <div className="input-wrap"><label className="label">Marca</label><input className="input" placeholder="ex: volkswagen" value={manual.brand} onChange={set("brand")} /></div>
-          <div className="input-wrap"><label className="label">Modelo</label><input className="input" placeholder="ex: gol" value={manual.model} onChange={set("model")} /></div>
-          <div className="input-wrap"><label className="label">Motor</label><input className="input" placeholder="ex: 1.0" value={manual.engineDisplacement} onChange={set("engineDisplacement")} /></div>
-          <div className="input-wrap"><label className="label">Combustível</label>
-            <select className="input" value={manual.fuelType} onChange={set("fuelType")}>
-              <option value="">Selecione</option>
-              <option value="flex">Flex</option>
-              <option value="gasolina">Gasolina</option>
-              <option value="diesel">Diesel</option>
-              <option value="elétrico">Elétrico</option>
-            </select>
+
+      {/* Busca por Placa — apenas PREMIUM */}
+      {isPremium ? (
+        <div className="search-hero">
+          <div className="hero-title-sm">🔍 BUSCA POR PLACA / CHASSI</div>
+          <div className="hero-sub-sm">Digite a placa para identificar o veículo e ver peças compatíveis</div>
+          <input className="input input-plate" placeholder="ABC1D23" value={plate} maxLength={8}
+            onChange={e => setPlate(e.target.value.toUpperCase())} onKeyDown={e => e.key === "Enter" && byPlate()} />
+          <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={byPlate} disabled={loading}>
+            {loading ? "Buscando..." : "Buscar por Placa"}
+          </button>
+        </div>
+      ) : (
+        /* Gate para FREE: mostra o que eles estão perdendo */
+        <div style={{
+          background: "linear-gradient(135deg,#1a1a1a,#111)",
+          border: "1px solid #f59e0b30",
+          borderRadius: "var(--radius)",
+          padding: 20,
+          marginBottom: 20,
+          textAlign: "center",
+          position: "relative",
+          overflow: "hidden",
+        }}>
+          <div style={{position:"absolute",top:-30,right:-30,width:100,height:100,background:"radial-gradient(circle,#f59e0b15 0%,transparent 70%)",borderRadius:"50%"}} />
+          <div style={{fontSize:32,marginBottom:10}}>🔒</div>
+          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:18,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>
+            Busca por Placa
           </div>
-          <button className="btn btn-primary" onClick={byManual} disabled={loading}>{loading ? "Buscando..." : "Buscar Peças"}</button>
+          <div style={{fontSize:12,color:"var(--muted)",marginBottom:14,lineHeight:1.5}}>
+            Digite a placa e descubra exatamente quais peças seu carro usa, o que mais quebra e onde comprar.
+          </div>
+          <button className="btn btn-primary" style={{background:"linear-gradient(90deg,#f59e0b,#d97706)",color:"#000",maxWidth:240,margin:"0 auto"}} onClick={onUpgrade}>
+            ⭐ Assinar Premium — a partir de R$ 29,90/mês
+          </button>
+        </div>
+      )}
+
+      {/* Busca manual — disponível para TODOS (catálogo básico) */}
+      <div style={{
+        background: "var(--card)",
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius)",
+        padding: 18,
+        marginBottom: 16,
+      }}>
+        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:"uppercase",letterSpacing:.5,marginBottom:12,display:"flex",alignItems:"center",gap:8}}>
+          🔧 Busca por Dados do Veículo
+          {!isPremium && <span style={{fontSize:10,color:"var(--muted)"}}>Acesso básico</span>}
+        </div>
+        <div className="input-wrap"><label className="label">Marca</label><input className="input" placeholder="ex: volkswagen" value={manual.brand} onChange={set("brand")} /></div>
+        <div className="input-wrap"><label className="label">Modelo</label><input className="input" placeholder="ex: gol" value={manual.model} onChange={set("model")} /></div>
+        <div className="input-wrap"><label className="label">Motor</label><input className="input" placeholder="ex: 1.0" value={manual.engineDisplacement} onChange={set("engineDisplacement")} /></div>
+        <div className="input-wrap"><label className="label">Combustível</label>
+          <select className="input" value={manual.fuelType} onChange={set("fuelType")}>
+            <option value="">Selecione</option>
+            <option value="flex">Flex</option>
+            <option value="gasolina">Gasolina</option>
+            <option value="diesel">Diesel</option>
+            <option value="elétrico">Elétrico</option>
+          </select>
+        </div>
+        <button className="btn btn-primary" onClick={byManual} disabled={loading}>{loading ? "Buscando..." : "Buscar Peças"}</button>
+      </div>
+
+      {/* Teaser de funcionalidades premium para FREE */}
+      {!isPremium && (
+        <div style={{background:"var(--card)",border:"1px solid var(--border)",borderRadius:"var(--radius)",padding:16}}>
+          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,textTransform:"uppercase",letterSpacing:.5,color:"var(--muted)",marginBottom:10}}>
+            Com o Premium você também vê:
+          </div>
+          {["🚨 Peças que mais quebram neste modelo","⚙️ Histórico de falhas do motor","📋 Orientações técnicas do mecânico","🔗 Peças compatíveis com marketplace integrado"].map((f,i) => (
+            <div key={i} style={{fontSize:13,color:"var(--muted2)",marginBottom:7,display:"flex",alignItems:"center",gap:8}}>
+              <span style={{filter:"blur(3px)",userSelect:"none"}}>████████</span>
+              <span style={{fontSize:10,color:"#f59e0b",fontWeight:700}}>PREMIUM</span>
+            </div>
+          ))}
+          <button className="btn btn-ghost" style={{marginTop:10,borderColor:"#f59e0b40",color:"#f59e0b"}} onClick={onUpgrade}>
+            ⭐ Ver tudo com Premium
+          </button>
         </div>
       )}
     </div>
@@ -668,12 +992,11 @@ function SearchScreen({ onVehicleFound }) {
 }
 
 // ─── RESULTS ──────────────────────────────────────────────────────────────────
-function ResultsScreen({ vehicleData, onBack, onSelectPart }) {
+function ResultsScreen({ vehicleData, onBack, onSelectPart, onUpgrade }) {
   const [filter, setFilter] = useState("all");
   const [catFilter, setCatFilter] = useState("all");
-  const { plate, vehicle, parts } = vehicleData;
+  const { plate, vehicle, parts, isPremium } = vehicleData;
 
-  // Extrai categorias únicas das peças retornadas
   const categories = ["all", ...new Set(parts.map(p => p.part?.categoryName).filter(Boolean))];
 
   const filtered = parts.filter(p => {
@@ -682,9 +1005,19 @@ function ResultsScreen({ vehicleData, onBack, onSelectPart }) {
     return condOk && catOk;
   });
 
+  // Insights técnicos simulados (Premium) — em produção viria do backend/IA
+  const technicalInsights = isPremium ? [
+    { icon: "🚨", label: "Falhas comuns", value: "Sistema de arrefecimento, velas de ignição" },
+    { icon: "🔁", label: "Revisão sugerida", value: "50.000 km — filtros e correia" },
+    { icon: "⚙️", label: "Motor", value: vehicle?.engineDisplacement || "—" },
+    { icon: "⛽", label: "Combustível", value: vehicle?.fuelType || "—" },
+  ] : [];
+
   return (
     <div className="screen screen-inner">
       <button className="back-btn" onClick={onBack}><Icons.Back /> Voltar</button>
+
+      {/* Banner do veículo */}
       <div className="vehicle-banner">
         {plate && <div className="veh-plate">{plate}</div>}
         <div className="veh-name">{vehicle?.brand} {vehicle?.model}</div>
@@ -693,7 +1026,66 @@ function ResultsScreen({ vehicleData, onBack, onSelectPart }) {
           {vehicle?.fuelType && <span className="veh-spec">⛽ {vehicle.fuelType}</span>}
           {vehicle?.year && <span className="veh-spec">📅 {vehicle.year}</span>}
         </div>
+        <div style={{marginTop:10}}>
+          <PlanBadge plan={isPremium ? "premium" : "free"} />
+        </div>
       </div>
+
+      {/* Orientações Técnicas — apenas PREMIUM */}
+      {isPremium && technicalInsights.length > 0 && (
+        <div style={{
+          background: "linear-gradient(135deg,#181818,#0f0f0f)",
+          border: "1px solid #f59e0b30",
+          borderRadius: "var(--radius)",
+          padding: 16,
+          marginBottom: 20,
+        }}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+            <span style={{fontSize:14}}>⭐</span>
+            <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:12,textTransform:"uppercase",letterSpacing:1,color:"#f59e0b"}}>
+              Orientações Técnicas
+            </span>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            {technicalInsights.map((ins, i) => (
+              <div key={i} style={{background:"var(--card2)",borderRadius:"var(--radius-sm)",padding:"10px 12px"}}>
+                <div style={{fontSize:10,color:"var(--muted)",marginBottom:2}}>{ins.icon} {ins.label}</div>
+                <div style={{fontSize:13,fontWeight:600,fontFamily:"'Barlow Condensed',sans-serif"}}>{ins.value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Gate técnico para FREE */}
+      {!isPremium && (
+        <div style={{
+          background:"linear-gradient(135deg,#1a1a1a,#111)",
+          border:"1px solid #f59e0b25",
+          borderRadius:"var(--radius)",
+          padding:14,
+          marginBottom:16,
+          display:"flex",
+          alignItems:"center",
+          gap:12,
+        }}>
+          <div style={{fontSize:26,flexShrink:0}}>🔒</div>
+          <div style={{flex:1}}>
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,textTransform:"uppercase",letterSpacing:.5,marginBottom:3}}>
+              Orientações Técnicas Bloqueadas
+            </div>
+            <div style={{fontSize:11,color:"var(--muted)",lineHeight:1.4}}>
+              Falhas comuns, revisões e histórico deste veículo — apenas Premium
+            </div>
+          </div>
+          <button
+            onClick={onUpgrade}
+            style={{flexShrink:0,background:"#f59e0b",color:"#000",border:"none",borderRadius:"var(--radius-sm)",padding:"8px 12px",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:11,textTransform:"uppercase",letterSpacing:.5,cursor:"pointer"}}>
+            ⭐ Ver
+          </button>
+        </div>
+      )}
+
       <div className="result-header">
         <div className="page-title" style={{ fontSize: 22, margin: 0 }}>Peças Compatíveis</div>
         <div className="result-count">{filtered.length} resultado{filtered.length !== 1 ? "s" : ""}</div>
@@ -1169,6 +1561,7 @@ function OrdersScreen({ user }) {
 
 // ─── SELL ─────────────────────────────────────────────────────────────────────
 function SellScreen({ user }) {
+  const { isPremium, canPostDirect } = getPlan(user);
   const [step, setStep] = useState(1);
   const [oem, setOem] = useState("");
   const [masterPart, setMasterPart] = useState(null);
@@ -1241,6 +1634,7 @@ function SellScreen({ user }) {
       fd.append("stock", form.stock);
       fd.append("condition", form.condition);
       fd.append("warrantyMonths", form.warrantyMonths);
+      fd.append("moderationStatus", canPostDirect ? "approved" : "pending");
       photos.forEach(p => fd.append("images", p.file));
 
       const res = await fetch(`${API}/marketplaceParts`, {
@@ -1250,7 +1644,7 @@ function SellScreen({ user }) {
       });
       const data = await res.json();
       if (!res.ok) return show(data.message || "Erro ao anunciar");
-      show("Peça anunciada com sucesso! 🎉", "success");
+      show(canPostDirect ? "⭐ Peça publicada direto! Aprovação automática Premium." : "Peça enviada! Aguardando aprovação da moderação.", "success");
       setStep(1); setOem(""); setMasterPart(null); setPhotos([]);
       setForm({ price: "", stock: "", condition: "new", warrantyMonths: "0", description: "" });
     } catch { show("Erro ao anunciar peça"); }
@@ -1262,6 +1656,30 @@ function SellScreen({ user }) {
       {toastEl}
       <div className="page-title">Anunciar Peça</div>
       <div className="page-sub">Venda pelo catálogo OEM — sem duplicidade</div>
+
+      {/* Status de moderação baseado no plano */}
+      <div style={{
+        background: canPostDirect ? "linear-gradient(135deg,#0d1f0d,#111)" : "var(--card)",
+        border: `1px solid ${canPostDirect ? "#22c55e30" : "var(--border)"}`,
+        borderRadius: "var(--radius)",
+        padding: "12px 14px",
+        marginBottom: 16,
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+      }}>
+        <div style={{fontSize:22,flexShrink:0}}>{canPostDirect ? "⚡" : "⏳"}</div>
+        <div>
+          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,textTransform:"uppercase",letterSpacing:.5,color:canPostDirect?"var(--success)":"var(--text)",marginBottom:2}}>
+            {canPostDirect ? "Publicação Imediata" : "Revisão pela Moderação"}
+          </div>
+          <div style={{fontSize:12,color:"var(--muted)",lineHeight:1.4}}>
+            {canPostDirect
+              ? "Seu plano Premium libera anúncios automaticamente, sem esperar aprovação."
+              : "Seus anúncios passam pela moderação antes de aparecer no marketplace. Assine Premium para publicação imediata."}
+          </div>
+        </div>
+      </div>
       {step === 1 ? (
         <>
           <div className="card" style={{ borderColor: "#f5a62325", marginBottom: 20 }}>
@@ -1337,7 +1755,7 @@ function SellScreen({ user }) {
 }
 
 // ─── PROFILE ──────────────────────────────────────────────────────────────────
-function ProfileScreen({ user, onLogout, onUpdateUser }) {
+function ProfileScreen({ user, onLogout, onUpdateUser, setScreen }) {
   const [myParts, setMyParts] = useState([]);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [photo, setPhoto] = useState(user?.photo || null);
@@ -1347,6 +1765,7 @@ function ProfileScreen({ user, onLogout, onUpdateUser }) {
   const [time, setTime] = useState("");
   const [location, setLocation] = useState("");
   const isSeller = user?.type === "seller";
+  const { isPremium, plan, planExpiresAt } = getPlan(user);
   const initials = (user?.name || "U").split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
   const photoInputRef = useRef();
   const [show, toastEl] = useToast();
@@ -1479,6 +1898,51 @@ function ProfileScreen({ user, onLogout, onUpdateUser }) {
         ))}
         {time && <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, marginBottom: 8 }}><span style={{ color: "var(--muted)" }}>Hora local</span><span>{time}</span></div>}
         {location && <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}><span style={{ color: "var(--muted)" }}>Localização</span><span style={{fontFamily:"monospace",fontSize:11}}>{location}</span></div>}
+      </div>
+
+      {/* Card do Plano */}
+      <div className="card" style={{
+        marginBottom: 16,
+        background: isPremium ? "linear-gradient(135deg,#1a1500,#111)" : "var(--card)",
+        border: isPremium ? "1px solid #f59e0b40" : "1px solid var(--border)",
+      }}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:600,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".6px"}}>Meu Plano</div>
+          <PlanBadge plan={plan} />
+        </div>
+        {isPremium ? (
+          <>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+              <span style={{fontSize:20}}>⭐</span>
+              <div>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,color:"#f59e0b"}}>
+                  {isSeller ? "Vendedor Premium" : "Comprador Premium"}
+                </div>
+                {planExpiresAt && (
+                  <div style={{fontSize:11,color:"var(--muted)"}}>
+                    Válido até {new Date(planExpiresAt).toLocaleDateString("pt-BR")}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div style={{fontSize:12,color:"var(--muted)",lineHeight:1.5}}>
+              {isSeller
+                ? "✅ Publicação direta · ✅ Busca por placa · ✅ Sem moderação"
+                : "✅ Busca por placa · ✅ Orientações técnicas · ✅ Peças mais quebradas"}
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{fontSize:13,color:"var(--muted)",marginBottom:12,lineHeight:1.5}}>
+              {isSeller
+                ? "Seus anúncios passam pela moderação. Assine o Premium para publicação imediata."
+                : "Você tem acesso ao catálogo básico. Assine o Premium para busca por placa e orientações técnicas."}
+            </div>
+            <button className="btn btn-primary" style={{background:"linear-gradient(90deg,#f59e0b,#d97706)",color:"#000"}} onClick={() => setScreen("upgrade")}>
+              ⭐ Assinar Premium
+            </button>
+          </>
+        )}
       </div>
 
       <button className="btn btn-danger" onClick={logout}><Icons.Logout /> Sair da conta</button>
@@ -1675,6 +2139,8 @@ export default function App() {
               email: result.user.email,
               photo: result.user.photoURL || null,
               type: "buyer",
+              plan: "free",
+              planExpiresAt: null,
               sellerVerified: false,
               active: true,
               createdAt: new Date().toISOString(),
@@ -1753,7 +2219,7 @@ export default function App() {
 
   if (!user) return <AuthScreen onLogin={u => { setUser(u); setScreen("home"); }} />;
 
-  const isSeller = user?.type === "seller";
+  const { isPremium, isSeller, isAdmin } = getPlan(user);
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
 
   const navItems = [
@@ -1761,10 +2227,59 @@ export default function App() {
     { key: "search", label: "Buscar", icon: <Icons.Search /> },
     { key: "marketplace", label: "Loja", icon: <Icons.Shop /> },
     { key: "orders", label: "Pedidos", icon: <Icons.Orders /> },
-    ...(isSeller ? [{ key: "sell", label: "Vender", icon: <Icons.Sell /> }, { key: "profile", label: "Perfil", icon: <Icons.User /> }] : [{ key: "profile", label: "Perfil", icon: <Icons.User /> }]),
+    ...(isSeller
+      ? [{ key: "sell", label: "Vender", icon: <Icons.Sell /> }, { key: "profile", label: "Perfil", icon: <Icons.User /> }]
+      : [{ key: "profile", label: "Perfil", icon: <Icons.User /> }]
+    ),
   ];
 
-  // Se há peça selecionada, mostra detalhe
+  // Reload user from Firestore (ex: após upgrade de plano)
+  const reloadUser = async () => {
+    await initFirebase();
+    const snap = await firebaseFirestore.getDoc(firebaseFirestore.doc(firebaseFirestore.instance, "users", user.uid));
+    if (snap.exists()) setUser({ uid: user.uid, email: user.email, ...snap.data() });
+  };
+
+  // Telas fullscreen (sem nav)
+  if (screen === "upgrade") return (
+    <div className="app">
+      {toastEl}
+      <UpgradeScreen
+        user={user}
+        onBack={() => setScreen("profile")}
+        onUpgradeSuccess={async () => { await reloadUser(); setScreen("profile"); }}
+      />
+    </div>
+  );
+
+  if (screen === "admin_moderacao" && isAdmin) {
+    // Importa dinamicamente para não pesar o bundle
+    const AdminModeracaoScreen = window.__AdminModeracaoScreen;
+    return (
+      <div className="app">
+        {toastEl}
+        {AdminModeracaoScreen
+          ? <AdminModeracaoScreen user={user} />
+          : (
+            <div className="screen screen-inner">
+              <div className="page-title">Moderação</div>
+              <div className="page-sub">Carregando painel admin...</div>
+              <div className="spinner" />
+              <div style={{fontSize:12,color:"var(--muted)",marginTop:20,lineHeight:1.6}}>
+                💡 Importe e registre o AdminModeracaoScreen no App.jsx para habilitar este painel.<br/>
+                Veja a documentação no arquivo AdminModeracaoScreen.jsx.
+              </div>
+              <button className="btn btn-secondary" style={{marginTop:20}} onClick={() => setScreen("home")}>
+                <Icons.Back /> Voltar ao Início
+              </button>
+            </div>
+          )
+        }
+      </div>
+    );
+  }
+
+  // Peça selecionada
   if (selectedPart) return (
     <div className="app">
       {toastEl}
@@ -1789,6 +2304,12 @@ export default function App() {
       <div className="topbar">
         <div className="topbar-logo">AUTO<span style={{color:"var(--white)",fontWeight:400}}>STORE</span></div>
         <div className="topbar-right">
+          {!isPremium && (
+            <button
+              onClick={() => setScreen("upgrade")}
+              style={{background:"linear-gradient(90deg,#f59e0b,#d97706)",color:"#000",border:"none",borderRadius:"var(--radius-sm)",padding:"6px 12px",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:12,letterSpacing:.5,textTransform:"uppercase",cursor:"pointer",marginRight:8}}
+            >⭐ Premium</button>
+          )}
           <button className="cart-btn" onClick={() => setScreen("cart")}>
             <Icons.Cart />
             Carrinho
@@ -1798,14 +2319,14 @@ export default function App() {
       </div>
 
       {screen === "home" && <HomeScreen user={user} setScreen={setScreen} cartCount={cartCount} />}
-      {screen === "search" && <SearchScreen onVehicleFound={d => { setVehicleData(d); setScreen("results"); }} />}
-      {screen === "results" && vehicleData && <ResultsScreen vehicleData={vehicleData} onBack={() => setScreen("search")} onSelectPart={setSelectedPart} />}
+      {screen === "search" && <SearchScreen user={user} onVehicleFound={d => { setVehicleData(d); setScreen("results"); }} onUpgrade={() => setScreen("upgrade")} />}
+      {screen === "results" && vehicleData && <ResultsScreen vehicleData={vehicleData} onBack={() => setScreen("search")} onSelectPart={setSelectedPart} onUpgrade={() => setScreen("upgrade")} />}
       {screen === "marketplace" && <MarketplaceScreen onSelectPart={setSelectedPart} />}
       {screen === "cart" && <CartScreen cart={cart} onUpdateQty={updateQty} onRemove={removeFromCart} onCheckout={checkout} loading={cartLoading} />}
       {screen === "orders" && <OrdersScreen user={user} />}
       {screen === "sell" && isSeller && <SellScreen user={user} />}
       {screen === "support" && <SupportScreen user={user} />}
-      {screen === "profile" && <ProfileScreen user={user} onLogout={() => setUser(null)} onUpdateUser={setUser} />}
+      {screen === "profile" && <ProfileScreen user={user} onLogout={() => setUser(null)} onUpdateUser={setUser} setScreen={setScreen} />}
       {screen === "payment_success" && <PaymentSuccessScreen setScreen={setScreen} clearCart={clearCart} />}
       {screen === "payment_failure" && <PaymentFailureScreen setScreen={setScreen} />}
       {screen === "payment_pending" && <PaymentPendingScreen setScreen={setScreen} />}

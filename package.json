@@ -1,19 +1,29 @@
 {
-  "name": "autostore-frontend",
-  "private": true,
-  "version": "1.0.0",
+  "name": "autostore-backend",
+  "version": "2.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "node --env-file=.env src/server.js",
+    "start": "node src/server.js"
   },
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-react": "^4.2.1",
-    "vite": "^5.0.0"
+    "axios": "^1.13.6",
+    "cloudinary": "^2.2.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.5.0",
+    "firebase": "^12.10.0",
+    "firebase-admin": "^12.7.0",
+    "lucide-react": "^1.8.0",
+    "mercadopago": "^2.0.15",
+    "multer": "^2.1.1",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
+    "uuid": "^13.0.0",
+    "zod": "^3.23.8"
   }
 }

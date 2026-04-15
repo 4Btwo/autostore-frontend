@@ -34,147 +34,143 @@ async function initFirebase() {
 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700;800&family=Barlow:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root{
-    --black:#0a0a0a;--dark:#111111;--card:#1a1a1a;--card2:#212121;
-    --border:#2a2a2a;--border2:#333333;
-    --orange:#FF6B00;--orange2:#e55e00;--orange3:#ff8c33;
-    --white:#F5F5F5;--white2:#cccccc;
-    --text:#F5F5F5;--muted:#888888;--muted2:#aaaaaa;
-    --success:#22c55e;--danger:#ef4444;--warning:#f59e0b;
-    --radius:12px;--radius-sm:7px;
+    --bg:#0F172A;--card:#1E293B;--card2:#263348;
+    --border:#2D3F55;--border2:#374F68;
+    --primary:#3B82F6;--primary2:#2563EB;--primary3:#60A5FA;
+    --accent:#22C55E;--accent2:#16A34A;
+    --text:#E5E7EB;--muted:#9CA3AF;--muted2:#6B7280;
+    --danger:#EF4444;--warning:#F59E0B;--success:#22C55E;
+    --radius:14px;--radius-sm:8px;--radius-xs:6px;
   }
-  html,body,#root{min-height:100vh;background:var(--black);color:var(--text);font-family:'Barlow',sans-serif;font-size:15px}
-  .app{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:0 auto;background:var(--dark);position:relative}
+  html,body,#root{min-height:100vh;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:15px}
+  .app{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:0 auto;background:var(--bg);position:relative}
   .screen{flex:1;overflow-y:auto}
-  .screen-inner{padding:20px 18px 90px}
+  .screen-inner{padding:20px 18px 100px}
 
-  /* ── KEYFRAMES ── */
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-  @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-  @keyframes heroZoom{from{transform:scale(1.08)}to{transform:scale(1)}}
-  @keyframes pulseDot{0%,100%{transform:scale(1);box-shadow:0 0 0 0 #FF6B0066}50%{transform:scale(1.3);box-shadow:0 0 0 6px #FF6B0000}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
   @keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
   @keyframes spin{to{transform:rotate(360deg)}}
-  @keyframes glowPulse{0%,100%{box-shadow:0 0 0 0 #FF6B0040}50%{box-shadow:0 0 18px 4px #FF6B0040}}
+  @keyframes pulseDot{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.4);opacity:.6}}
 
-  .anim-fade-in{animation:fadeIn .5s ease both}
-  .anim-fade-up{animation:fadeUp .45s cubic-bezier(.16,1,.3,1) both}
-  .delay-1{animation-delay:.08s}.delay-2{animation-delay:.16s}.delay-3{animation-delay:.24s}
-  .delay-4{animation-delay:.32s}.delay-5{animation-delay:.40s}.delay-6{animation-delay:.48s}
+  .anim-fade-in{animation:fadeIn .4s ease both}
+  .anim-fade-up{animation:fadeUp .4s cubic-bezier(.16,1,.3,1) both}
+  .delay-1{animation-delay:.06s}.delay-2{animation-delay:.12s}.delay-3{animation-delay:.18s}
+  .delay-4{animation-delay:.24s}.delay-5{animation-delay:.30s}.delay-6{animation-delay:.36s}
 
-  /* ── SHIMMER SKELETON ── */
   .shimmer{background:linear-gradient(90deg,var(--card) 25%,var(--card2) 50%,var(--card) 75%);background-size:400px 100%;animation:shimmer 1.4s infinite;border-radius:var(--radius-sm)}
 
   /* ── TOPBAR ── */
-  .topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 12px;background:var(--dark);position:sticky;top:0;z-index:10;border-bottom:1px solid var(--border)}
-  .topbar-logo{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:800;letter-spacing:3px;color:var(--orange);text-transform:uppercase}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 14px;background:var(--bg);position:sticky;top:0;z-index:10;border-bottom:1px solid var(--border)}
+  .topbar-logo{font-family:'Inter',sans-serif;font-size:20px;font-weight:800;letter-spacing:1px;color:var(--primary);text-transform:uppercase}
   .topbar-right{display:flex;align-items:center;gap:10px}
-  .cart-btn{position:relative;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 12px;cursor:pointer;display:flex;align-items:center;gap:5px;color:var(--text);font-size:13px;font-family:'Barlow',sans-serif;transition:border-color .2s,background .2s}
-  .cart-btn:hover{border-color:var(--orange);background:var(--card2)}
-  .cart-badge{position:absolute;top:-6px;right:-6px;background:var(--orange);color:#000;font-size:10px;font-weight:700;border-radius:99px;min-width:18px;height:18px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+  .cart-btn{position:relative;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 14px;cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif;font-weight:500;transition:all .2s}
+  .cart-btn:hover{border-color:var(--primary);background:var(--card2)}
+  .cart-badge{position:absolute;top:-6px;right:-6px;background:var(--accent);color:#fff;font-size:10px;font-weight:700;border-radius:99px;min-width:18px;height:18px;display:flex;align-items:center;justify-content:center;padding:0 4px}
 
   /* ── BOTTOM NAV ── */
-  .bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:20}
-  .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 0 8px;cursor:pointer;border:none;background:none;color:var(--muted);font-size:11px;font-family:'Barlow',sans-serif;gap:4px;transition:color .2s}
-  .nav-item.active{color:var(--orange)}
+  .bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:20;padding-bottom:env(safe-area-inset-bottom)}
+  .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 0 8px;cursor:pointer;border:none;background:none;color:var(--muted);font-size:10px;font-family:'Inter',sans-serif;font-weight:500;gap:4px;transition:color .2s}
+  .nav-item.active{color:var(--primary)}
   .nav-item svg{width:20px;height:20px}
 
   /* ── HERO ── */
-  .hero{position:relative;height:240px;overflow:hidden}
-  .hero-img{width:100%;height:100%;object-fit:cover;display:block;animation:heroZoom 8s ease-out forwards}
-  .hero-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(10,10,10,.25) 0%,rgba(10,10,10,.88) 100%)}
-  .hero-content{position:absolute;bottom:0;left:0;right:0;padding:22px 20px 26px}
-  .brand-mark{display:flex;align-items:center;gap:9px;margin-bottom:5px}
-  .brand-dot{width:9px;height:9px;border-radius:50%;background:var(--orange);animation:pulseDot 2.2s ease-in-out infinite}
-  .brand-name{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:800;letter-spacing:4px;color:var(--white);text-transform:uppercase}
-  .brand-name span{color:var(--orange)}
-  .hero-tagline{font-size:12px;color:rgba(245,245,245,.55);letter-spacing:1.5px;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;font-weight:500}
+  .hero{position:relative;height:220px;overflow:hidden;border-radius:0 0 20px 20px}
+  .hero-img{width:100%;height:100%;object-fit:cover;display:block}
+  .hero-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(15,23,42,.2) 0%,rgba(15,23,42,.92) 100%)}
+  .hero-content{position:absolute;bottom:0;left:0;right:0;padding:24px 20px 28px}
+  .brand-mark{display:flex;align-items:center;gap:9px;margin-bottom:6px}
+  .brand-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulseDot 2s ease-in-out infinite}
+  .brand-name{font-size:28px;font-weight:800;letter-spacing:2px;color:#fff;text-transform:uppercase}
+  .brand-name span{color:var(--primary3)}
+  .hero-tagline{font-size:12px;color:rgba(255,255,255,.5);letter-spacing:1.5px;text-transform:uppercase;font-weight:500}
 
   /* ── PROMO STRIP ── */
-  .promo-strip{display:flex;align-items:center;justify-content:space-between;background:linear-gradient(90deg,var(--orange),var(--orange2));padding:15px 18px;color:#000;cursor:pointer;border:none;width:100%;font-family:'Barlow',sans-serif;text-align:left;transition:filter .2s}
-  .promo-strip:hover{filter:brightness(1.08)}
-  .promo-strip-text{font-weight:700;font-size:15px;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;text-transform:uppercase}
-  .promo-strip-sub{font-size:12px;opacity:.75;margin-top:2px}
-  .promo-strip-arrow{font-size:24px;font-weight:900}
+  .promo-strip{display:flex;align-items:center;justify-content:space-between;background:linear-gradient(90deg,var(--primary),var(--primary2));padding:16px 18px;color:#fff;cursor:pointer;border:none;width:100%;font-family:'Inter',sans-serif;text-align:left;transition:filter .2s;border-radius:var(--radius);margin-bottom:4px}
+  .promo-strip:hover{filter:brightness(1.1)}
+  .promo-strip-text{font-weight:700;font-size:15px;letter-spacing:.2px}
+  .promo-strip-sub{font-size:12px;opacity:.8;margin-top:2px}
+  .promo-strip-arrow{font-size:22px;font-weight:900;opacity:.9}
 
-  /* ── SECTION LABELS ── */
-  .section-label{font-size:10px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:2px;padding:20px 18px 0;font-family:'Barlow Condensed',sans-serif}
-  .section-title{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800;letter-spacing:1px;padding:2px 18px 14px;color:var(--white);text-transform:uppercase}
+  /* ── SECTION ── */
+  .section-label{font-size:11px;font-weight:700;color:var(--primary3);text-transform:uppercase;letter-spacing:1.5px;padding:20px 18px 0}
+  .section-title{font-size:22px;font-weight:800;letter-spacing:.3px;padding:4px 18px 14px;color:var(--text)}
 
   /* ── SUPER GRID ── */
-  .super-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 18px 18px}
-  .super-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 14px;display:flex;flex-direction:column;align-items:flex-start;gap:7px;cursor:pointer;transition:border-color .25s,transform .2s,box-shadow .25s;color:var(--text);position:relative;overflow:hidden}
-  .super-card::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,#FF6B0010 0%,transparent 60%);opacity:0;transition:opacity .25s}
-  .super-card:hover{border-color:var(--orange);transform:translateY(-3px);box-shadow:0 8px 24px rgba(255,107,0,.12)}
-  .super-card:hover::after{opacity:1}
-  .super-icon{font-size:26px}
-  .super-title{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;letter-spacing:.3px;text-transform:uppercase}
+  .super-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 18px 18px}
+  .super-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 16px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;cursor:pointer;transition:all .2s;color:var(--text);position:relative;overflow:hidden}
+  .super-card:hover{border-color:var(--primary);transform:translateY(-2px);box-shadow:0 8px 24px rgba(59,130,246,.12)}
+  .super-icon{font-size:24px}
+  .super-title{font-weight:700;font-size:14px;letter-spacing:.2px}
   .super-sub{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px}
 
   /* ── TYPOGRAPHY ── */
-  .page-title{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:800;letter-spacing:1px;margin-bottom:2px;text-transform:uppercase}
-  .page-sub{font-size:13px;color:var(--muted);margin-bottom:22px}
+  .page-title{font-size:26px;font-weight:800;letter-spacing:.3px;margin-bottom:4px}
+  .page-sub{font-size:14px;color:var(--muted);margin-bottom:22px}
 
   /* ── INPUTS ── */
-  .input-wrap{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
-  .label{font-size:10px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:1px;font-family:'Barlow Condensed',sans-serif}
-  .input{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:13px 14px;color:var(--text);font-size:15px;font-family:'Barlow',sans-serif;outline:none;transition:border .2s,box-shadow .2s;width:100%}
-  .input:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(255,107,0,.12)}
-  .input::placeholder{color:#555}
-  select.input{appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
-  .input-plate{font-family:'Barlow Condensed',sans-serif;font-size:34px;font-weight:800;letter-spacing:10px;text-align:center;text-transform:uppercase;padding:18px}
+  .input-wrap{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+  .label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px}
+  .input{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:13px 14px;color:var(--text);font-size:15px;font-family:'Inter',sans-serif;outline:none;transition:border .2s,box-shadow .2s;width:100%}
+  .input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+  .input::placeholder{color:var(--muted2)}
+  select.input{appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+  .input-plate{font-size:32px;font-weight:800;letter-spacing:8px;text-align:center;text-transform:uppercase;padding:18px}
 
   /* ── BUTTONS ── */
-  .btn{display:flex;align-items:center;justify-content:center;gap:7px;padding:14px 20px;border-radius:var(--radius-sm);border:none;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;transition:opacity .2s,transform .1s,box-shadow .2s;width:100%}
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 20px;border-radius:var(--radius-sm);border:none;font-family:'Inter',sans-serif;font-weight:700;font-size:15px;letter-spacing:.2px;cursor:pointer;transition:all .2s;width:100%}
   .btn:active{transform:scale(.97)}
-  .btn:disabled{opacity:.35;cursor:not-allowed}
-  .btn-primary{background:var(--orange);color:#000;box-shadow:0 4px 14px rgba(255,107,0,.3)}
-  .btn-primary:hover:not(:disabled){background:var(--orange2);box-shadow:0 6px 20px rgba(255,107,0,.45)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn-primary{background:var(--primary);color:#fff;box-shadow:0 4px 14px rgba(59,130,246,.3)}
+  .btn-primary:hover:not(:disabled){background:var(--primary2);box-shadow:0 6px 20px rgba(59,130,246,.4)}
+  .btn-accent{background:var(--accent);color:#fff;box-shadow:0 4px 14px rgba(34,197,94,.25)}
+  .btn-accent:hover:not(:disabled){background:var(--accent2);box-shadow:0 6px 20px rgba(34,197,94,.35)}
   .btn-secondary{background:var(--card2);color:var(--text);border:1px solid var(--border2)}
-  .btn-secondary:hover:not(:disabled){border-color:var(--orange);color:var(--orange)}
+  .btn-secondary:hover:not(:disabled){border-color:var(--primary);color:var(--primary)}
   .btn-danger{background:var(--danger);color:#fff}
-  .btn-success{background:var(--success);color:#000}
-  .btn-ghost{background:transparent;color:var(--orange);border:1px solid var(--orange)}
-  .btn-ghost:hover{background:#FF6B0015}
-  .btn-sm{padding:8px 14px;font-size:13px;width:auto;border-radius:6px}
+  .btn-success{background:var(--success);color:#fff}
+  .btn-ghost{background:transparent;color:var(--primary);border:1px solid var(--primary)}
+  .btn-ghost:hover{background:rgba(59,130,246,.08)}
+  .btn-sm{padding:8px 14px;font-size:13px;width:auto;border-radius:var(--radius-xs)}
   .btn-row{display:flex;gap:10px}
 
   /* ── CARDS ── */
   .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
-  .card-title{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:17px;margin-bottom:3px;text-transform:uppercase}
+  .card-title{font-weight:700;font-size:16px;margin-bottom:4px}
   .card-sub{font-size:13px;color:var(--muted)}
 
   /* ── BADGES ── */
-  .badge{display:inline-block;padding:3px 9px;border-radius:99px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;font-family:'Barlow Condensed',sans-serif}
-  .badge-new{background:#22c55e1a;color:var(--success)}
-  .badge-used{background:#f59e0b1a;color:var(--warning)}
-  .badge-seller{background:#FF6B001a;color:var(--orange)}
-  .badge-pending{background:#f59e0b1a;color:var(--warning)}
-  .badge-confirmed{background:#22c55e1a;color:var(--success)}
-  .badge-cancelled{background:#ef44441a;color:var(--danger)}
-  .badge-shipped{background:#3b82f61a;color:#60a5fa}
-  .badge-delivered{background:#22c55e1a;color:var(--success)}
+  .badge{display:inline-block;padding:3px 10px;border-radius:99px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+  .badge-new{background:rgba(34,197,94,.12);color:#4ADE80}
+  .badge-used{background:rgba(245,158,11,.12);color:var(--warning)}
+  .badge-seller{background:rgba(59,130,246,.12);color:var(--primary3)}
+  .badge-pending{background:rgba(245,158,11,.12);color:var(--warning)}
+  .badge-confirmed{background:rgba(34,197,94,.12);color:#4ADE80}
+  .badge-cancelled{background:rgba(239,68,68,.12);color:var(--danger)}
+  .badge-shipped{background:rgba(59,130,246,.12);color:var(--primary3)}
+  .badge-delivered{background:rgba(34,197,94,.12);color:#4ADE80}
 
   /* ── VEHICLE BANNER ── */
-  .vehicle-banner{background:linear-gradient(135deg,#181818,#0f0f0f);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:20px;position:relative;overflow:hidden}
-  .vehicle-banner::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;background:radial-gradient(circle,#FF6B0022 0%,transparent 70%);border-radius:50%}
-  .veh-plate{font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:800;letter-spacing:8px;color:var(--orange);margin-bottom:4px}
-  .veh-name{font-size:20px;font-weight:600;margin-bottom:6px;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px}
+  .vehicle-banner{background:linear-gradient(135deg,var(--card),var(--card2));border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:20px;position:relative;overflow:hidden}
+  .vehicle-banner::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;background:radial-gradient(circle,rgba(59,130,246,.12) 0%,transparent 70%);border-radius:50%}
+  .veh-plate{font-size:26px;font-weight:800;letter-spacing:6px;color:var(--primary3);margin-bottom:4px}
+  .veh-name{font-size:18px;font-weight:700;margin-bottom:6px}
   .veh-specs{display:flex;gap:10px;flex-wrap:wrap}
   .veh-spec{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:3px}
 
   /* ── PART CARD ── */
-  .part-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s}
-  .part-card:hover{border-color:var(--orange);transform:translateY(-2px);box-shadow:0 6px 20px rgba(255,107,0,.1)}
+  .part-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;cursor:pointer;transition:all .2s}
+  .part-card:hover{border-color:var(--primary);transform:translateY(-2px);box-shadow:0 6px 20px rgba(59,130,246,.1)}
   .part-icon{width:58px;height:58px;border-radius:var(--radius-sm);background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;border:1px solid var(--border)}
   .part-info{flex:1;min-width:0}
-  .part-name{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.2px}
+  .part-name{font-weight:700;font-size:15px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .part-oem{font-size:11px;color:var(--muted);font-family:monospace;margin-bottom:6px}
   .part-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
   .part-price-col{text-align:right;flex-shrink:0}
-  .part-price{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:700;color:var(--orange);line-height:1}
+  .part-price{font-size:22px;font-weight:800;color:var(--accent);line-height:1}
   .part-warranty{font-size:11px;color:var(--muted);margin-top:2px}
   .part-stock{font-size:11px;color:var(--muted);margin-top:2px}
 
@@ -183,49 +179,49 @@ const styles = `
   .detail-images img{width:100%;height:100%;object-fit:cover}
   .detail-thumbs{display:flex;gap:8px;margin-bottom:20px;overflow-x:auto;scrollbar-width:none}
   .detail-thumb{width:60px;height:60px;border-radius:8px;object-fit:cover;border:2px solid transparent;cursor:pointer;flex-shrink:0;transition:border-color .2s}
-  .detail-thumb.active{border-color:var(--orange)}
-  .detail-title{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:800;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+  .detail-thumb.active{border-color:var(--primary)}
+  .detail-title{font-size:24px;font-weight:800;margin-bottom:4px}
   .detail-oem{font-family:monospace;font-size:13px;color:var(--muted);margin-bottom:12px}
-  .detail-price{font-family:'Barlow Condensed',sans-serif;font-size:46px;font-weight:800;color:var(--orange);line-height:1;margin-bottom:4px}
+  .detail-price{font-size:42px;font-weight:800;color:var(--accent);line-height:1;margin-bottom:4px}
   .detail-price-sub{font-size:13px;color:var(--muted);margin-bottom:20px}
   .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
   .detail-stat{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px}
-  .detail-stat-label{font-size:10px;color:var(--orange);text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px;font-family:'Barlow Condensed',sans-serif;font-weight:700}
-  .detail-stat-value{font-size:15px;font-weight:600;font-family:'Barlow Condensed',sans-serif}
+  .detail-stat-label{font-size:10px;color:var(--primary3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;font-weight:600}
+  .detail-stat-value{font-size:15px;font-weight:700}
   .detail-section{margin-bottom:20px}
-  .detail-section-title{font-size:11px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-family:'Barlow Condensed',sans-serif}
+  .detail-section-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
   .qty-ctrl{display:flex;align-items:center;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;width:fit-content}
-  .qty-btn{width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:var(--card2);border:none;color:var(--text);font-size:18px;cursor:pointer;transition:background .2s,color .2s}
-  .qty-btn:hover{background:var(--orange);color:#000}
-  .qty-val{width:48px;text-align:center;font-size:16px;font-weight:700;background:transparent;border:none;color:var(--text);font-family:'Barlow Condensed',sans-serif}
+  .qty-btn{width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:var(--card2);border:none;color:var(--text);font-size:18px;cursor:pointer;transition:all .2s}
+  .qty-btn:hover{background:var(--primary);color:#fff}
+  .qty-val{width:48px;text-align:center;font-size:16px;font-weight:700;background:transparent;border:none;color:var(--text)}
   .seller-box{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;display:flex;align-items:center;gap:12px}
-  .seller-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--orange),var(--orange2));display:flex;align-items:center;justify-content:center;font-weight:700;color:#000;font-size:16px;flex-shrink:0;font-family:'Barlow Condensed',sans-serif}
+  .seller-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary2));display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:16px;flex-shrink:0}
 
   /* ── CART ── */
   .cart-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;display:flex;gap:12px;align-items:center;transition:border-color .2s}
   .cart-item:hover{border-color:var(--border2)}
   .cart-item-info{flex:1;min-width:0}
-  .cart-item-name{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.2px}
+  .cart-item-name{font-weight:700;font-size:15px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .cart-item-sub{font-size:12px;color:var(--muted)}
-  .cart-item-price{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;color:var(--orange)}
+  .cart-item-price{font-size:20px;font-weight:800;color:var(--accent)}
   .cart-remove{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;flex-shrink:0;padding:4px;transition:color .2s}
   .cart-remove:hover{color:var(--danger)}
   .cart-summary{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-top:16px}
   .cart-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:14px}
-  .cart-total{font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:800;color:var(--orange)}
+  .cart-total{font-size:28px;font-weight:800;color:var(--accent)}
 
   /* ── ORDERS ── */
   .stars{display:flex;gap:2px}
   .star{font-size:22px;cursor:pointer;transition:transform .1s;line-height:1}
   .star:hover{transform:scale(1.2)}
   .star-sm{font-size:14px}
-  .review-card{background:var(--card2);border-radius:10px;padding:12px;margin-bottom:10px;border:1px solid var(--border)}
+  .review-card{background:var(--card2);border-radius:var(--radius-sm);padding:12px;margin-bottom:10px;border:1px solid var(--border)}
   .review-header{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-  .review-avatar{width:28px;height:28px;border-radius:50%;background:var(--orange);color:#000;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'Barlow Condensed',sans-serif}
-  .review-name{font-size:13px;font-weight:600;font-family:'Barlow Condensed',sans-serif;letter-spacing:.2px}
+  .review-avatar{width:28px;height:28px;border-radius:50%;background:var(--primary);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .review-name{font-size:13px;font-weight:600}
   .review-comment{font-size:13px;color:var(--muted);line-height:1.5}
   .seller-rating{display:flex;align-items:center;gap:6px;margin-bottom:4px}
-  .rating-avg{font-size:20px;font-weight:800;color:var(--orange);font-family:'Barlow Condensed',sans-serif}
+  .rating-avg{font-size:20px;font-weight:800;color:var(--accent)}
   .rating-count{font-size:12px;color:var(--muted)}
   .order-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;transition:border-color .2s}
   .order-card:hover{border-color:var(--border2)}
@@ -236,35 +232,35 @@ const styles = `
   .order-total-row{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
 
   /* ── AUTH ── */
-  .auth-screen{min-height:100vh;background:var(--black);display:flex;flex-direction:column;align-items:stretch;overflow:hidden}
+  .auth-screen{min-height:100vh;background:var(--bg);display:flex;flex-direction:column;align-items:stretch;overflow:hidden}
   @media(min-width:640px){
     .auth-screen{position:relative;flex-direction:row;align-items:stretch}
     .auth-hero{position:fixed!important;inset:0;height:100vh!important;z-index:0}
     .auth-hero img{width:100%;height:100%;object-fit:cover}
-    .auth-hero-overlay{background:linear-gradient(to right,rgba(10,10,10,.95) 38%,rgba(10,10,10,.5) 100%)!important}
+    .auth-hero-overlay{background:linear-gradient(to right,rgba(15,23,42,.96) 38%,rgba(15,23,42,.5) 100%)!important}
     .auth-hero-logo{display:none!important}
     .auth-body{position:relative;z-index:1;width:440px;min-height:100vh;background:transparent!important;border-radius:0!important;margin-top:0!important;padding:0!important;display:flex;flex-direction:column;justify-content:center;padding:40px 40px!important}
-    .auth-body::before{content:'';position:absolute;inset:0;background:rgba(17,17,17,.9);backdrop-filter:blur(4px);z-index:-1}
+    .auth-body::before{content:'';position:absolute;inset:0;background:rgba(30,41,59,.92);backdrop-filter:blur(8px);z-index:-1}
     .auth-desktop-logo{display:flex!important}
   }
   .auth-desktop-logo{display:none;flex-direction:column;margin-bottom:40px}
-  .auth-desktop-logo-text{font-family:'Barlow Condensed',sans-serif;font-size:52px;font-weight:800;letter-spacing:6px;color:var(--orange);line-height:1;text-transform:uppercase}
-  .auth-desktop-logo-text span{color:var(--white)}
-  .auth-desktop-logo-sub{font-size:11px;color:rgba(245,245,245,.4);letter-spacing:3px;text-transform:uppercase;margin-top:5px;font-family:'Barlow Condensed',sans-serif;font-weight:500}
+  .auth-desktop-logo-text{font-size:46px;font-weight:800;letter-spacing:4px;color:var(--primary);line-height:1;text-transform:uppercase}
+  .auth-desktop-logo-text span{color:var(--text)}
+  .auth-desktop-logo-sub{font-size:11px;color:rgba(229,231,235,.4);letter-spacing:2px;text-transform:uppercase;margin-top:5px;font-weight:500}
   .auth-hero{position:relative;height:260px;overflow:hidden;flex-shrink:0}
-  .auth-hero img{width:100%;height:100%;object-fit:cover;display:block;animation:heroZoom 8s ease-out forwards}
-  .auth-hero-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(10,10,10,.2),rgba(10,10,10,.92))}
+  .auth-hero img{width:100%;height:100%;object-fit:cover;display:block}
+  .auth-hero-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(15,23,42,.2),rgba(15,23,42,.94))}
   .auth-hero-logo{position:absolute;bottom:0;left:0;right:0;padding:20px 24px 24px;text-align:center}
-  .auth-logo-text{font-family:'Barlow Condensed',sans-serif;font-size:52px;font-weight:800;letter-spacing:6px;color:var(--orange);line-height:1;text-transform:uppercase}
-  .auth-logo-text span{color:var(--white)}
-  .auth-logo-sub{font-size:11px;color:rgba(245,245,245,.5);letter-spacing:3px;text-transform:uppercase;margin-top:3px}
-  .auth-body{background:var(--dark);flex:1;padding:28px 24px 40px;border-radius:20px 20px 0 0;margin-top:-16px;position:relative}
+  .auth-logo-text{font-size:46px;font-weight:800;letter-spacing:4px;color:var(--primary);line-height:1;text-transform:uppercase}
+  .auth-logo-text span{color:var(--text)}
+  .auth-logo-sub{font-size:11px;color:rgba(229,231,235,.5);letter-spacing:2px;text-transform:uppercase;margin-top:3px}
+  .auth-body{background:var(--bg);flex:1;padding:28px 24px 40px;border-radius:20px 20px 0 0;margin-top:-16px;position:relative}
   .auth-box{width:100%;max-width:400px;margin:0 auto}
   .auth-tabs{display:flex;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border);margin-bottom:26px}
-  .auth-tab{flex:1;padding:12px;text-align:center;cursor:pointer;font-weight:700;font-size:14px;border:none;background:transparent;color:var(--muted);font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;text-transform:uppercase;transition:all .2s}
-  .auth-tab.active{background:var(--orange);color:#000}
-  .btn-google{width:100%;padding:13px;border-radius:var(--radius-sm);border:1.5px solid var(--border);background:var(--dark);color:var(--text);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px;transition:all .2s;font-family:'Barlow',sans-serif}
-  .btn-google:hover{border-color:var(--orange);background:var(--card2)}
+  .auth-tab{flex:1;padding:12px;text-align:center;cursor:pointer;font-weight:700;font-size:14px;border:none;background:transparent;color:var(--muted);font-family:'Inter',sans-serif;letter-spacing:.3px;text-transform:uppercase;transition:all .2s}
+  .auth-tab.active{background:var(--primary);color:#fff}
+  .btn-google{width:100%;padding:13px;border-radius:var(--radius-sm);border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px;transition:all .2s;font-family:'Inter',sans-serif}
+  .btn-google:hover{border-color:var(--primary);background:var(--card2)}
   .auth-divider{display:flex;align-items:center;gap:10px;margin-bottom:16px;color:var(--muted);font-size:12px}
   .auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--border)}
 
@@ -272,282 +268,54 @@ const styles = `
   .filter-bar{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;margin-bottom:10px;scrollbar-width:none}
   .filter-bar::-webkit-scrollbar{display:none}
   .filter-section{margin-bottom:18px}
-  .filter-label{font-size:10px;color:var(--orange);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-family:'Barlow Condensed',sans-serif}
-  .chip{flex-shrink:0;padding:7px 16px;border-radius:99px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:'Barlow Condensed',sans-serif;letter-spacing:.3px;text-transform:uppercase;transition:all .2s}
-  .chip.active{border-color:var(--orange);background:#FF6B0015;color:var(--orange)}
+  .filter-label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
+  .chip{flex-shrink:0;padding:7px 16px;border-radius:99px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:.2px;transition:all .2s}
+  .chip.active{border-color:var(--primary);background:rgba(59,130,246,.1);color:var(--primary3)}
   .chip:hover:not(.active){border-color:var(--border2);color:var(--text)}
 
   /* ── SEARCH HERO ── */
-  .search-hero{background:linear-gradient(135deg,#181818,#0f0f0f);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:22px;text-align:center;position:relative;overflow:hidden}
-  .search-hero::before{content:'';position:absolute;top:-60px;right:-60px;width:180px;height:180px;background:radial-gradient(circle,#FF6B0018 0%,transparent 70%);border-radius:50%}
-  .hero-title-sm{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;letter-spacing:2px;color:var(--orange);margin-bottom:4px;text-transform:uppercase}
+  .search-hero{background:linear-gradient(135deg,var(--card),var(--card2));border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:22px;text-align:center;position:relative;overflow:hidden}
+  .search-hero::before{content:'';position:absolute;top:-60px;right:-60px;width:180px;height:180px;background:radial-gradient(circle,rgba(59,130,246,.1) 0%,transparent 70%);border-radius:50%}
+  .hero-title-sm{font-size:20px;font-weight:800;letter-spacing:.5px;color:var(--primary3);margin-bottom:4px}
   .hero-sub-sm{font-size:13px;color:var(--muted);margin-bottom:18px}
 
-  /* ── SUPPORT / CHAT ── */
+  /* ── CHAT ── */
   .chat-box{height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:12px;background:var(--card);display:flex;flex-direction:column;gap:8px}
   .chat-msg{padding:9px 13px;border-radius:12px;max-width:85%;font-size:14px;line-height:1.4}
-  .chat-msg-mine{background:var(--orange);color:#000;align-self:flex-end;border-bottom-right-radius:3px;font-weight:500}
+  .chat-msg-mine{background:var(--primary);color:#fff;align-self:flex-end;border-bottom-right-radius:3px;font-weight:500}
   .chat-msg-other{background:var(--card2);color:var(--text);align-self:flex-start;border-bottom-left-radius:3px;border:1px solid var(--border)}
-  .chat-msg-user{font-weight:700;font-size:10px;margin-bottom:2px;opacity:.7;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;text-transform:uppercase}
+  .chat-msg-user{font-weight:700;font-size:10px;margin-bottom:2px;opacity:.7;letter-spacing:.5px;text-transform:uppercase}
   .chat-msg-time{font-size:10px;opacity:.55;margin-top:3px;text-align:right}
   .chat-input-row{display:flex;gap:8px}
   .chat-input-row .input{flex:1}
-  .chat-send-btn{padding:13px 17px;background:var(--orange);color:#000;border:none;border-radius:var(--radius-sm);font-weight:900;cursor:pointer;font-size:18px;flex-shrink:0;transition:background .2s,transform .1s}
-  .chat-send-btn:hover{background:var(--orange2)}
+  .chat-send-btn{padding:13px 17px;background:var(--primary);color:#fff;border:none;border-radius:var(--radius-sm);font-weight:700;cursor:pointer;font-size:18px;flex-shrink:0;transition:all .2s}
+  .chat-send-btn:hover{background:var(--primary2)}
   .chat-send-btn:active{transform:scale(.95)}
 
   /* ── PROFILE ── */
-  .profile-avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--orange),var(--orange2));display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:#000;font-family:'Barlow Condensed',sans-serif}
-  .avatar-edit-btn{position:absolute;bottom:0;right:0;background:var(--orange);color:#000;border:none;border-radius:50%;width:26px;height:26px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(255,107,0,.5)}
-  .profile-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:22px}
-  .stat-box{background:var(--card);padding:14px;text-align:center}
-  .stat-num{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800;color:var(--orange)}
-  .stat-lbl{font-size:10px;color:var(--muted);font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px}
-  .seller-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .photo-upload-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
-  .photo-slot{aspect-ratio:1;border-radius:10px;border:1.5px dashed var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;background:var(--card2);transition:border-color .2s,box-shadow .2s}
-  .photo-slot:hover{border-color:var(--orange);box-shadow:0 0 0 3px rgba(255,107,0,.1)}
-  .photo-slot img{width:100%;height:100%;object-fit:cover}
-  .photo-slot .remove-photo{position:absolute;top:4px;right:4px;background:#ef444490;color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
-  .photo-add-icon{font-size:22px;color:var(--muted)}
-  .span2{grid-column:span 2}
+  .profile-avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary2));display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:#fff}
 
-  /* ── MISC ── */
-  .divider{height:1px;background:var(--border);margin:18px 0}
-  .empty{text-align:center;padding:60px 20px;color:var(--muted)}
-  .empty-icon{font-size:52px;margin-bottom:12px}
-  .empty-title{font-size:18px;color:var(--text);font-weight:700;margin-bottom:6px;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px}
-  .empty-sub{font-size:13px}
-  .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--orange);border-radius:50%;animation:spin .7s linear infinite;margin:50px auto}
-  .toast{position:fixed;bottom:92px;left:50%;transform:translateX(-50%);background:var(--card2);border:1px solid var(--border2);padding:11px 22px;border-radius:99px;font-size:13px;font-weight:700;z-index:200;animation:fadeUp .25s ease;white-space:nowrap;max-width:90vw;font-family:'Barlow Condensed',sans-serif;letter-spacing:.3px;text-transform:uppercase}
-  .toast.success{border-color:var(--success);color:var(--success)}
-  .toast.error{border-color:var(--danger);color:var(--danger)}
-  .back-btn{display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.3px;text-transform:uppercase;padding:0;margin-bottom:18px;transition:color .2s}
-  .back-btn:hover{color:var(--orange)}
-  .result-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-  .result-count{font-size:12px;color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.3px;text-transform:uppercase}
-  .toggle-link{text-align:center;font-size:13px;color:var(--muted);margin-top:12px;cursor:pointer;font-family:'Barlow',sans-serif}
-  .toggle-link span{color:var(--orange);font-weight:600}
-  textarea.input{resize:none}
-  ::-webkit-scrollbar{width:4px}
-  ::-webkit-scrollbar-track{background:transparent}
-  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-  ::-webkit-scrollbar-thumb:hover{background:var(--orange)}
+  /* ── METRIC CARDS ── */
+  .metric-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+  .metric-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+  .metric-label{font-size:11px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
+  .metric-value{font-size:24px;font-weight:800;color:var(--text)}
+  .metric-value.green{color:var(--accent)}
+  .metric-value.blue{color:var(--primary3)}
+  .metric-sub{font-size:11px;color:var(--muted);margin-top:3px}
+
+  /* ── DIVIDER ── */
+  .divider{height:1px;background:var(--border);margin:16px 0}
+  
+  /* ── TOAST / ALERT ── */
+  .alert{border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:14px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:10px}
+  .alert-info{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2);color:var(--primary3)}
+  .alert-success{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.2);color:#4ADE80}
+  .alert-danger{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:var(--danger)}
 `
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 const fmt = n => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-// ─── SISTEMA DE PLANOS ────────────────────────────────────────────────────────
-// Campos no Firestore do usuário:
-//   type: "buyer" | "seller"
-//   plan: "free" | "premium"          ← novo
-//   planExpiresAt: ISO string | null   ← novo
-//   isAdmin: true | undefined
-//
-// Regras:
-//   Comprador FREE    → catálogo OEM, marketplace (sem busca por placa)
-//   Comprador PREMIUM → tudo acima + busca placa/chassi + orientações técnicas
-//   Vendedor FREE     → pode anunciar, anúncios vão para moderação
-//   Vendedor PREMIUM  → anúncios aprovados direto + busca placa/chassi completa
-
-function getPlan(user) {
-  if (!user) return { type: null, plan: "free", isPremium: false, isSeller: false, isAdmin: false };
-  const plan = user.plan || "free";
-  const expired = user.planExpiresAt && new Date(user.planExpiresAt) < new Date();
-  const isPremium = plan === "premium" && !expired;
-  return {
-    type: user.type || "buyer",
-    plan: isPremium ? "premium" : "free",
-    isPremium,
-    isSeller: user.type === "seller",
-    isAdmin: !!user.isAdmin,
-    canSearchByPlate: isPremium,                            // Comprador Premium + Vendedor Premium
-    canPostDirect: isPremium && user.type === "seller",     // Vendedor Premium → aprovação direta
-    planExpiresAt: user.planExpiresAt || null,
-  };
-}
-
-// Badge visual do plano
-function PlanBadge({ plan, style = {} }) {
-  if (plan === "premium") {
-    return (
-      <span style={{
-        display: "inline-flex", alignItems: "center", gap: 3,
-        background: "linear-gradient(90deg,#f59e0b,#d97706)",
-        color: "#000", borderRadius: 99, fontSize: 9, fontWeight: 800,
-        padding: "2px 8px", fontFamily: "'Barlow Condensed',sans-serif",
-        letterSpacing: 1, textTransform: "uppercase", ...style
-      }}>⭐ PREMIUM</span>
-    );
-  }
-  return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 3,
-      background: "var(--card2)", color: "var(--muted)", border: "1px solid var(--border)",
-      borderRadius: 99, fontSize: 9, fontWeight: 700,
-      padding: "2px 8px", fontFamily: "'Barlow Condensed',sans-serif",
-      letterSpacing: 1, textTransform: "uppercase", ...style
-    }}>FREE</span>
-  );
-}
-
-// Tela de upgrade — bloqueio suave com CTA
-function PremiumGate({ feature, onUpgrade, onBack }) {
-  return (
-    <div className="screen screen-inner">
-      <button className="back-btn" onClick={onBack}><Icons.Back /> Voltar</button>
-      <div style={{ textAlign: "center", padding: "30px 10px" }}>
-        <div style={{ fontSize: 56, marginBottom: 16 }}>⭐</div>
-        <div className="page-title" style={{ color: "var(--orange)", marginBottom: 8 }}>Recurso Premium</div>
-        <div style={{ fontSize: 14, color: "var(--muted2)", lineHeight: 1.6, marginBottom: 28, maxWidth: 300, margin: "0 auto 28px" }}>
-          {feature}
-        </div>
-        {/* Comparativo FREE vs PREMIUM */}
-        <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: 18, marginBottom: 20, textAlign: "left" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 1, fontFamily: "'Barlow Condensed',sans-serif" }}>FREE</div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#f59e0b", textTransform: "uppercase", letterSpacing: 1, fontFamily: "'Barlow Condensed',sans-serif" }}>⭐ PREMIUM</div>
-          </div>
-          {[
-            ["Catálogo OEM", "Catálogo OEM"],
-            ["Marketplace", "Marketplace"],
-            ["✗ Busca por placa", "✅ Busca por placa"],
-            ["✗ Busca por chassi", "✅ Busca por chassi"],
-            ["✗ Orientações técnicas", "✅ Orientações técnicas"],
-            ["✗ Peças mais quebradas", "✅ Peças mais quebradas"],
-          ].map(([free, prem], i) => (
-            <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, padding: "6px 0", borderTop: i > 0 ? "1px solid var(--border)" : "none" }}>
-              <div style={{ fontSize: 12, color: free.startsWith("✗") ? "var(--muted)" : "var(--text)" }}>{free}</div>
-              <div style={{ fontSize: 12, color: prem.startsWith("✅") ? "var(--success)" : "var(--text)", fontWeight: prem.startsWith("✅") ? 600 : 400 }}>{prem}</div>
-            </div>
-          ))}
-        </div>
-        <button className="btn btn-primary" style={{ animation: "glowPulse 2s ease-in-out infinite" }} onClick={onUpgrade}>
-          ⭐ Assinar Premium
-        </button>
-        <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 12 }}>
-          Planos a partir de R$ 29,90/mês
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Tela de upgrade de plano (Assinatura)
-function UpgradeScreen({ user, onBack, onUpgradeSuccess }) {
-  const [loading, setLoading] = useState(null);
-  const [show, toastEl] = useToast();
-  const { isSeller } = getPlan(user);
-
-  const plans = isSeller
-    ? [
-        {
-          id: "seller_premium",
-          label: "Vendedor Premium",
-          price: "R$ 59,90/mês",
-          color: "#f59e0b",
-          features: [
-            "✅ Anúncios aprovados direto (sem moderação)",
-            "✅ Busca por placa e chassi completa",
-            "✅ Histórico técnico do veículo",
-            "✅ Peças que mais quebram por modelo",
-            "✅ Destaque nos resultados",
-            "✅ Sem limite de anúncios",
-          ],
-        },
-      ]
-    : [
-        {
-          id: "buyer_premium",
-          label: "Comprador Premium",
-          price: "R$ 29,90/mês",
-          color: "#f59e0b",
-          features: [
-            "✅ Busca por placa e chassi",
-            "✅ Orientações técnicas completas",
-            "✅ Peças mais comuns por veículo",
-            "✅ Histórico de falhas do modelo",
-            "✅ Acesso prioritário ao suporte",
-          ],
-        },
-      ];
-
-  const handleUpgrade = async (planId) => {
-    setLoading(planId);
-    try {
-      // Aqui você integra com Mercado Pago Subscriptions ou outro gateway
-      // Por ora: simulação de upgrade (substitua pela chamada real de pagamento)
-      await initFirebase();
-      const token = await firebaseAuth.instance.currentUser?.getIdToken();
-      const res = await fetch(`${API}/payments/subscribe`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ planId }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        // Redireciona para checkout de assinatura
-        if (data.data?.initPoint) {
-          window.location.href = data.data.initPoint;
-          return;
-        }
-      }
-      // Fallback: atualiza localmente para demo
-      await firebaseFirestore.setDoc(
-        firebaseFirestore.doc(firebaseFirestore.instance, "users", user.uid),
-        { plan: "premium", planExpiresAt: new Date(Date.now() + 30 * 86400000).toISOString() },
-        { merge: true }
-      );
-      onUpgradeSuccess();
-      show("🎉 Premium ativado!", "success");
-    } catch {
-      show("Erro ao processar. Tente novamente.");
-    } finally { setLoading(null); }
-  };
-
-  return (
-    <div className="screen screen-inner">
-      {toastEl}
-      <button className="back-btn" onClick={onBack}><Icons.Back /> Voltar</button>
-      <div className="page-title">Assinar Premium</div>
-      <div className="page-sub">Desbloqueie todos os recursos</div>
-
-      {plans.map(plan => (
-        <div key={plan.id} style={{
-          background: "var(--card)", border: `1.5px solid ${plan.color}40`,
-          borderRadius: "var(--radius)", padding: 20, marginBottom: 16,
-          position: "relative", overflow: "hidden"
-        }}>
-          <div style={{ position: "absolute", top: -20, right: -20, width: 80, height: 80, background: `radial-gradient(circle,${plan.color}25 0%,transparent 70%)`, borderRadius: "50%" }} />
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <div>
-              <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 800, fontSize: 20, letterSpacing: 1, textTransform: "uppercase" }}>
-                ⭐ {plan.label}
-              </div>
-              <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 26, fontWeight: 700, color: plan.color, marginTop: 2 }}>{plan.price}</div>
-            </div>
-          </div>
-          {plan.features.map((f, i) => (
-            <div key={i} style={{ fontSize: 13, color: "var(--text)", marginBottom: 7, lineHeight: 1.4 }}>{f}</div>
-          ))}
-          <button
-            className="btn btn-primary"
-            style={{ marginTop: 18, background: plan.color, color: "#000" }}
-            onClick={() => handleUpgrade(plan.id)}
-            disabled={loading === plan.id}
-          >
-            {loading === plan.id ? "Processando..." : `Assinar ${plan.label}`}
-          </button>
-        </div>
-      ))}
-
-      <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: 14, fontSize: 12, color: "var(--muted)", lineHeight: 1.6 }}>
-        💳 Pagamento seguro via Mercado Pago · Cancele a qualquer momento · Sem fidelidade
-      </div>
-    </div>
-  );
-}
 
 function Toast({ msg, type, onDone }) {
   useEffect(() => { const t = setTimeout(onDone, 2800); return () => clearTimeout(t); }, []);
@@ -594,7 +362,6 @@ const Icons = {
   Logout: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
   Chat: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
   Check: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>,
-  Crown: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
 };
 
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
@@ -614,13 +381,11 @@ function AuthScreen({ onLogin }) {
         email: cred.user.email,
         photo: cred.user.photoURL || null,
         type: "buyer",
-        plan: "free",
-        planExpiresAt: null,
         sellerVerified: false,
         active: true,
         createdAt: new Date().toISOString(),
       });
-      onLogin({ uid: cred.user.uid, email: cred.user.email, name: cred.user.displayName, photo: cred.user.photoURL, type: "buyer", plan: "free" });
+      onLogin({ uid: cred.user.uid, email: cred.user.email, name: cred.user.displayName, photo: cred.user.photoURL, type: "buyer" });
     } else {
       onLogin({ uid: cred.user.uid, email: cred.user.email, ...snap.data() });
     }
@@ -665,7 +430,7 @@ function AuthScreen({ onLogin }) {
       await initFirebase();
       const cred = await firebaseAuth.createUserWithEmailAndPassword(firebaseAuth.instance, form.email, form.password);
       await firebaseFirestore.setDoc(firebaseFirestore.doc(firebaseFirestore.instance, "users", cred.user.uid),
-        { name: form.name, email: form.email, type: form.type, plan: "free", planExpiresAt: null, sellerVerified: false, active: true, createdAt: new Date().toISOString() });
+        { name: form.name, email: form.email, type: form.type, sellerVerified: false, active: true, createdAt: new Date().toISOString() });
       show("Conta criada! Faça login.", "success");
       setTab("login");
     } catch (e) {
@@ -735,9 +500,10 @@ function AuthScreen({ onLogin }) {
 
 // ─── HOME ─────────────────────────────────────────────────────────────────────
 function HomeScreen({ user, setScreen, cartCount }) {
-  const { isPremium, isSeller, isAdmin } = getPlan(user);
+  const isSeller = user?.type === "seller";
   return (
     <div className="screen" style={{paddingBottom:90}}>
+      {/* Hero com imagem real - home.html style */}
       <div className="hero">
         <img className="hero-img"
           style={{animationName:"heroZoom",animationDuration:"10s",animationTimingFunction:"ease-out",animationFillMode:"forwards"}}
@@ -749,130 +515,73 @@ function HomeScreen({ user, setScreen, cartCount }) {
             <div className="brand-dot" />
             <div className="brand-name">AUTO<span>STORE</span></div>
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-            <div className="hero-tagline">Olá, {user?.name?.split(" ")[0]} 👋</div>
-            <PlanBadge plan={isPremium ? "premium" : "free"} />
-          </div>
+          <div className="hero-tagline">Olá, {user?.name?.split(" ")[0]} 👋 · Marketplace Automotivo</div>
         </div>
       </div>
 
-      {/* Promo strip — FREE vê upgrade, PREMIUM vê a busca por placa */}
-      {isPremium ? (
-        <button className="promo-strip" onClick={() => setScreen("search")}>
-          <div>
-            <div className="promo-strip-text">⭐ Buscar pela placa ou chassi</div>
-            <div className="promo-strip-sub">Encontre a peça certa para seu veículo</div>
-          </div>
-          <div className="promo-strip-arrow">→</div>
-        </button>
-      ) : (
-        <button className="promo-strip" style={{background:"linear-gradient(90deg,#1a1a1a,#111)"}} onClick={() => setScreen("upgrade")}>
-          <div>
-            <div className="promo-strip-text" style={{color:"#f59e0b"}}>⭐ Desbloqueie a busca por placa</div>
-            <div className="promo-strip-sub" style={{color:"var(--muted)"}}>Assine o Premium e encontre a peça certa</div>
-          </div>
-          <div className="promo-strip-arrow" style={{color:"#f59e0b"}}>→</div>
-        </button>
-      )}
+      {/* Promo strip - home.html style */}
+      <button className="promo-strip" onClick={() => setScreen("search")}>
+        <div>
+          <div className="promo-strip-text">Buscar pela placa</div>
+          <div className="promo-strip-sub">Encontre a peça certa para seu veículo</div>
+        </div>
+        <div className="promo-strip-arrow">→</div>
+      </button>
 
       <div className="section-label">Navegação</div>
       <div className="section-title">O que você precisa?</div>
 
       <div className="super-grid">
-        {/* Busca por placa — bloqueada para FREE */}
-        <div className="super-card anim-fade-up delay-1" onClick={() => setScreen(isPremium ? "search" : "upgrade")}
-          style={!isPremium ? {opacity:.75} : {}}>
-          <div className="super-icon">{isPremium ? "🚗" : "🔒"}</div>
-          <div className="super-title">Busca por Placa</div>
-          <div className="super-sub">{isPremium ? "Por placa ou chassi" : <span style={{color:"#f59e0b"}}>⭐ Premium</span>}</div>
+        <div className="super-card anim-fade-up delay-1" onClick={() => setScreen("search")}>
+          <div className="super-icon">🚗</div>
+          <div className="super-title">Buscar Veículo</div>
+          <div className="super-sub">Por placa ou modelo</div>
         </div>
-
-        {/* Catálogo OEM — livre para todos */}
         <div className="super-card anim-fade-up delay-2" onClick={() => setScreen("marketplace")}>
           <div className="super-icon">🔧</div>
           <div className="super-title">Catálogo OEM</div>
           <div className="super-sub">Referências originais</div>
         </div>
-
-        {/* Marketplace — livre para todos */}
         <div className="super-card anim-fade-up delay-2" onClick={() => setScreen("marketplace")}>
           <div className="super-icon">🛒</div>
           <div className="super-title">Marketplace</div>
-          <div className="super-sub">Comprar peças</div>
+          <div className="super-sub">Comprar peças <span className="badge badge-new" style={{fontSize:9,padding:"2px 6px"}}>Novo</span></div>
         </div>
-
-        {/* Meus Pedidos — livre para todos */}
         <div className="super-card anim-fade-up delay-3" onClick={() => setScreen("orders")}>
           <div className="super-icon">📦</div>
           <div className="super-title">Meus Pedidos</div>
           <div className="super-sub">Acompanhar entregas</div>
         </div>
-
-        {/* Anunciar — só vendedores */}
         {isSeller && (
-          <div className="super-card anim-fade-up delay-4" onClick={() => setScreen("sell")}
-            style={{position:"relative"}}>
+          <div className="super-card anim-fade-up delay-4" onClick={() => setScreen("sell")}>
             <div className="super-icon">💰</div>
             <div className="super-title">Anunciar Peça</div>
-            <div className="super-sub">
-              {isPremium
-                ? <span style={{color:"var(--success)"}}>✅ Aprovação direta</span>
-                : <span style={{color:"var(--muted)"}}>Passa por moderação</span>}
-            </div>
-            {isPremium && <div style={{position:"absolute",top:10,right:10}}><PlanBadge plan="premium" /></div>}
+            <div className="super-sub">Vender pelo OEM</div>
           </div>
         )}
-
-        {/* Upgrade — visível só para FREE */}
-        {!isPremium && (
-          <div className="super-card anim-fade-up delay-4" onClick={() => setScreen("upgrade")}
-            style={{border:"1px solid #f59e0b40",background:"linear-gradient(135deg,#1a1a1a,#111)"}}>
-            <div className="super-icon">⭐</div>
-            <div className="super-title" style={{color:"#f59e0b"}}>Assinar Premium</div>
-            <div className="super-sub">Desbloquear tudo</div>
-          </div>
-        )}
-
-        {/* Perfil */}
         <div className="super-card anim-fade-up delay-4" onClick={() => setScreen("profile")}>
           <div className="super-icon">👤</div>
           <div className="super-title">Perfil</div>
           <div className="super-sub">Conta e anúncios</div>
         </div>
-
-        {/* Suporte */}
         <div className="super-card anim-fade-up delay-5" onClick={() => setScreen("support")}>
           <div className="super-icon">💬</div>
           <div className="super-title">Suporte</div>
           <div className="super-sub">Central de ajuda</div>
         </div>
-
-        {/* Admin — só admins */}
-        {isAdmin && (
-          <div className="super-card anim-fade-up delay-5" onClick={() => setScreen("admin_moderacao")}
-            style={{border:"1px solid #ef444440"}}>
-            <div className="super-icon">🛡️</div>
-            <div className="super-title">Moderação</div>
-            <div className="super-sub">Painel admin</div>
-          </div>
-        )}
       </div>
     </div>
   );
 }
 
 // ─── SEARCH ───────────────────────────────────────────────────────────────────
-function SearchScreen({ user, onVehicleFound, onUpgrade }) {
-  const { isPremium } = getPlan(user);
+function SearchScreen({ onVehicleFound }) {
   const [mode, setMode] = useState("plate");
   const [plate, setPlate] = useState("");
   const [manual, setManual] = useState({ brand: "", model: "", engineDisplacement: "", fuelType: "" });
   const [loading, setLoading] = useState(false);
   const [show, toastEl] = useToast();
   const set = k => e => setManual(f => ({ ...f, [k]: e.target.value }));
-
-  // FREE → só busca manual por catálogo (sem placa/chassi)
-  // PREMIUM → placa + chassi + busca manual completa
 
   const search = async (body) => {
     setLoading(true);
@@ -881,7 +590,7 @@ function SearchScreen({ user, onVehicleFound, onUpgrade }) {
       const data = await res.json();
       if (!data.success) return show("Nenhuma peça encontrada para este veículo");
       const parts = Array.isArray(data.data) ? data.data : (data.data?.data || []);
-      onVehicleFound({ plate: body.plate, vehicle: data.vehicle || { brand: body.brand, model: body.model, engineDisplacement: body.engineDisplacement, fuelType: body.fuelType }, parts, isPremium });
+      onVehicleFound({ plate: body.plate, vehicle: data.vehicle || { brand: body.brand, model: body.model, engineDisplacement: body.engineDisplacement, fuelType: body.fuelType }, parts });
     } catch { show("Erro ao conectar com o servidor. Backend está rodando?"); }
     finally { setLoading(false); }
   };
@@ -900,91 +609,37 @@ function SearchScreen({ user, onVehicleFound, onUpgrade }) {
   return (
     <div className="screen screen-inner">
       {toastEl}
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
-        <div className="page-title" style={{marginBottom:0}}>Buscar Peças</div>
-        <PlanBadge plan={isPremium ? "premium" : "free"} />
-      </div>
+      <div className="page-title">Buscar Peças</div>
       <div className="page-sub">Encontre peças compatíveis com seu veículo</div>
-
-      {/* Busca por Placa — apenas PREMIUM */}
-      {isPremium ? (
-        <div className="search-hero">
-          <div className="hero-title-sm">🔍 BUSCA POR PLACA / CHASSI</div>
-          <div className="hero-sub-sm">Digite a placa para identificar o veículo e ver peças compatíveis</div>
-          <input className="input input-plate" placeholder="ABC1D23" value={plate} maxLength={8}
-            onChange={e => setPlate(e.target.value.toUpperCase())} onKeyDown={e => e.key === "Enter" && byPlate()} />
-          <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={byPlate} disabled={loading}>
-            {loading ? "Buscando..." : "Buscar por Placa"}
-          </button>
-        </div>
-      ) : (
-        /* Gate para FREE: mostra o que eles estão perdendo */
-        <div style={{
-          background: "linear-gradient(135deg,#1a1a1a,#111)",
-          border: "1px solid #f59e0b30",
-          borderRadius: "var(--radius)",
-          padding: 20,
-          marginBottom: 20,
-          textAlign: "center",
-          position: "relative",
-          overflow: "hidden",
-        }}>
-          <div style={{position:"absolute",top:-30,right:-30,width:100,height:100,background:"radial-gradient(circle,#f59e0b15 0%,transparent 70%)",borderRadius:"50%"}} />
-          <div style={{fontSize:32,marginBottom:10}}>🔒</div>
-          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:18,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>
-            Busca por Placa
-          </div>
-          <div style={{fontSize:12,color:"var(--muted)",marginBottom:14,lineHeight:1.5}}>
-            Digite a placa e descubra exatamente quais peças seu carro usa, o que mais quebra e onde comprar.
-          </div>
-          <button className="btn btn-primary" style={{background:"linear-gradient(90deg,#f59e0b,#d97706)",color:"#000",maxWidth:240,margin:"0 auto"}} onClick={onUpgrade}>
-            ⭐ Assinar Premium — a partir de R$ 29,90/mês
-          </button>
-        </div>
-      )}
-
-      {/* Busca manual — disponível para TODOS (catálogo básico) */}
-      <div style={{
-        background: "var(--card)",
-        border: "1px solid var(--border)",
-        borderRadius: "var(--radius)",
-        padding: 18,
-        marginBottom: 16,
-      }}>
-        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:15,textTransform:"uppercase",letterSpacing:.5,marginBottom:12,display:"flex",alignItems:"center",gap:8}}>
-          🔧 Busca por Dados do Veículo
-          {!isPremium && <span style={{fontSize:10,color:"var(--muted)"}}>Acesso básico</span>}
-        </div>
-        <div className="input-wrap"><label className="label">Marca</label><input className="input" placeholder="ex: volkswagen" value={manual.brand} onChange={set("brand")} /></div>
-        <div className="input-wrap"><label className="label">Modelo</label><input className="input" placeholder="ex: gol" value={manual.model} onChange={set("model")} /></div>
-        <div className="input-wrap"><label className="label">Motor</label><input className="input" placeholder="ex: 1.0" value={manual.engineDisplacement} onChange={set("engineDisplacement")} /></div>
-        <div className="input-wrap"><label className="label">Combustível</label>
-          <select className="input" value={manual.fuelType} onChange={set("fuelType")}>
-            <option value="">Selecione</option>
-            <option value="flex">Flex</option>
-            <option value="gasolina">Gasolina</option>
-            <option value="diesel">Diesel</option>
-            <option value="elétrico">Elétrico</option>
-          </select>
-        </div>
-        <button className="btn btn-primary" onClick={byManual} disabled={loading}>{loading ? "Buscando..." : "Buscar Peças"}</button>
+      <div className="search-hero">
+        <div className="hero-title">🔍 BUSCA POR PLACA</div>
+        <div className="hero-sub">Digite a placa para identificar o veículo</div>
+        <input className="input input-plate" placeholder="ABC1D23" value={plate} maxLength={8}
+          onChange={e => setPlate(e.target.value.toUpperCase())} onKeyDown={e => e.key === "Enter" && byPlate()} />
+        <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={byPlate} disabled={loading}>
+          {loading ? "Buscando..." : "Buscar por Placa"}
+        </button>
       </div>
-
-      {/* Teaser de funcionalidades premium para FREE */}
-      {!isPremium && (
-        <div style={{background:"var(--card)",border:"1px solid var(--border)",borderRadius:"var(--radius)",padding:16}}>
-          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,textTransform:"uppercase",letterSpacing:.5,color:"var(--muted)",marginBottom:10}}>
-            Com o Premium você também vê:
+      <div className="toggle-link" onClick={() => setMode(m => m === "plate" ? "manual" : "plate")}>
+        {mode === "plate" ? <>Busca manual? <span>Clique aqui</span></> : <>Usar placa? <span>Clique aqui</span></>}
+      </div>
+      {mode === "manual" && (
+        <div style={{ marginTop: 18 }}>
+          <div className="divider" />
+          <div style={{ fontWeight: 600, marginBottom: 14 }}>Busca por dados do veículo</div>
+          <div className="input-wrap"><label className="label">Marca</label><input className="input" placeholder="ex: volkswagen" value={manual.brand} onChange={set("brand")} /></div>
+          <div className="input-wrap"><label className="label">Modelo</label><input className="input" placeholder="ex: gol" value={manual.model} onChange={set("model")} /></div>
+          <div className="input-wrap"><label className="label">Motor</label><input className="input" placeholder="ex: 1.0" value={manual.engineDisplacement} onChange={set("engineDisplacement")} /></div>
+          <div className="input-wrap"><label className="label">Combustível</label>
+            <select className="input" value={manual.fuelType} onChange={set("fuelType")}>
+              <option value="">Selecione</option>
+              <option value="flex">Flex</option>
+              <option value="gasolina">Gasolina</option>
+              <option value="diesel">Diesel</option>
+              <option value="elétrico">Elétrico</option>
+            </select>
           </div>
-          {["🚨 Peças que mais quebram neste modelo","⚙️ Histórico de falhas do motor","📋 Orientações técnicas do mecânico","🔗 Peças compatíveis com marketplace integrado"].map((f,i) => (
-            <div key={i} style={{fontSize:13,color:"var(--muted2)",marginBottom:7,display:"flex",alignItems:"center",gap:8}}>
-              <span style={{filter:"blur(3px)",userSelect:"none"}}>████████</span>
-              <span style={{fontSize:10,color:"#f59e0b",fontWeight:700}}>PREMIUM</span>
-            </div>
-          ))}
-          <button className="btn btn-ghost" style={{marginTop:10,borderColor:"#f59e0b40",color:"#f59e0b"}} onClick={onUpgrade}>
-            ⭐ Ver tudo com Premium
-          </button>
+          <button className="btn btn-primary" onClick={byManual} disabled={loading}>{loading ? "Buscando..." : "Buscar Peças"}</button>
         </div>
       )}
     </div>
@@ -992,11 +647,12 @@ function SearchScreen({ user, onVehicleFound, onUpgrade }) {
 }
 
 // ─── RESULTS ──────────────────────────────────────────────────────────────────
-function ResultsScreen({ vehicleData, onBack, onSelectPart, onUpgrade }) {
+function ResultsScreen({ vehicleData, onBack, onSelectPart }) {
   const [filter, setFilter] = useState("all");
   const [catFilter, setCatFilter] = useState("all");
-  const { plate, vehicle, parts, isPremium } = vehicleData;
+  const { plate, vehicle, parts } = vehicleData;
 
+  // Extrai categorias únicas das peças retornadas
   const categories = ["all", ...new Set(parts.map(p => p.part?.categoryName).filter(Boolean))];
 
   const filtered = parts.filter(p => {
@@ -1005,19 +661,9 @@ function ResultsScreen({ vehicleData, onBack, onSelectPart, onUpgrade }) {
     return condOk && catOk;
   });
 
-  // Insights técnicos simulados (Premium) — em produção viria do backend/IA
-  const technicalInsights = isPremium ? [
-    { icon: "🚨", label: "Falhas comuns", value: "Sistema de arrefecimento, velas de ignição" },
-    { icon: "🔁", label: "Revisão sugerida", value: "50.000 km — filtros e correia" },
-    { icon: "⚙️", label: "Motor", value: vehicle?.engineDisplacement || "—" },
-    { icon: "⛽", label: "Combustível", value: vehicle?.fuelType || "—" },
-  ] : [];
-
   return (
     <div className="screen screen-inner">
       <button className="back-btn" onClick={onBack}><Icons.Back /> Voltar</button>
-
-      {/* Banner do veículo */}
       <div className="vehicle-banner">
         {plate && <div className="veh-plate">{plate}</div>}
         <div className="veh-name">{vehicle?.brand} {vehicle?.model}</div>
@@ -1026,66 +672,7 @@ function ResultsScreen({ vehicleData, onBack, onSelectPart, onUpgrade }) {
           {vehicle?.fuelType && <span className="veh-spec">⛽ {vehicle.fuelType}</span>}
           {vehicle?.year && <span className="veh-spec">📅 {vehicle.year}</span>}
         </div>
-        <div style={{marginTop:10}}>
-          <PlanBadge plan={isPremium ? "premium" : "free"} />
-        </div>
       </div>
-
-      {/* Orientações Técnicas — apenas PREMIUM */}
-      {isPremium && technicalInsights.length > 0 && (
-        <div style={{
-          background: "linear-gradient(135deg,#181818,#0f0f0f)",
-          border: "1px solid #f59e0b30",
-          borderRadius: "var(--radius)",
-          padding: 16,
-          marginBottom: 20,
-        }}>
-          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-            <span style={{fontSize:14}}>⭐</span>
-            <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:12,textTransform:"uppercase",letterSpacing:1,color:"#f59e0b"}}>
-              Orientações Técnicas
-            </span>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-            {technicalInsights.map((ins, i) => (
-              <div key={i} style={{background:"var(--card2)",borderRadius:"var(--radius-sm)",padding:"10px 12px"}}>
-                <div style={{fontSize:10,color:"var(--muted)",marginBottom:2}}>{ins.icon} {ins.label}</div>
-                <div style={{fontSize:13,fontWeight:600,fontFamily:"'Barlow Condensed',sans-serif"}}>{ins.value}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Gate técnico para FREE */}
-      {!isPremium && (
-        <div style={{
-          background:"linear-gradient(135deg,#1a1a1a,#111)",
-          border:"1px solid #f59e0b25",
-          borderRadius:"var(--radius)",
-          padding:14,
-          marginBottom:16,
-          display:"flex",
-          alignItems:"center",
-          gap:12,
-        }}>
-          <div style={{fontSize:26,flexShrink:0}}>🔒</div>
-          <div style={{flex:1}}>
-            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,textTransform:"uppercase",letterSpacing:.5,marginBottom:3}}>
-              Orientações Técnicas Bloqueadas
-            </div>
-            <div style={{fontSize:11,color:"var(--muted)",lineHeight:1.4}}>
-              Falhas comuns, revisões e histórico deste veículo — apenas Premium
-            </div>
-          </div>
-          <button
-            onClick={onUpgrade}
-            style={{flexShrink:0,background:"#f59e0b",color:"#000",border:"none",borderRadius:"var(--radius-sm)",padding:"8px 12px",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:11,textTransform:"uppercase",letterSpacing:.5,cursor:"pointer"}}>
-            ⭐ Ver
-          </button>
-        </div>
-      )}
-
       <div className="result-header">
         <div className="page-title" style={{ fontSize: 22, margin: 0 }}>Peças Compatíveis</div>
         <div className="result-count">{filtered.length} resultado{filtered.length !== 1 ? "s" : ""}</div>
@@ -1561,7 +1148,6 @@ function OrdersScreen({ user }) {
 
 // ─── SELL ─────────────────────────────────────────────────────────────────────
 function SellScreen({ user }) {
-  const { isPremium, canPostDirect } = getPlan(user);
   const [step, setStep] = useState(1);
   const [oem, setOem] = useState("");
   const [masterPart, setMasterPart] = useState(null);
@@ -1634,7 +1220,6 @@ function SellScreen({ user }) {
       fd.append("stock", form.stock);
       fd.append("condition", form.condition);
       fd.append("warrantyMonths", form.warrantyMonths);
-      fd.append("moderationStatus", canPostDirect ? "approved" : "pending");
       photos.forEach(p => fd.append("images", p.file));
 
       const res = await fetch(`${API}/marketplaceParts`, {
@@ -1644,7 +1229,7 @@ function SellScreen({ user }) {
       });
       const data = await res.json();
       if (!res.ok) return show(data.message || "Erro ao anunciar");
-      show(canPostDirect ? "⭐ Peça publicada direto! Aprovação automática Premium." : "Peça enviada! Aguardando aprovação da moderação.", "success");
+      show("Peça anunciada com sucesso! 🎉", "success");
       setStep(1); setOem(""); setMasterPart(null); setPhotos([]);
       setForm({ price: "", stock: "", condition: "new", warrantyMonths: "0", description: "" });
     } catch { show("Erro ao anunciar peça"); }
@@ -1656,30 +1241,6 @@ function SellScreen({ user }) {
       {toastEl}
       <div className="page-title">Anunciar Peça</div>
       <div className="page-sub">Venda pelo catálogo OEM — sem duplicidade</div>
-
-      {/* Status de moderação baseado no plano */}
-      <div style={{
-        background: canPostDirect ? "linear-gradient(135deg,#0d1f0d,#111)" : "var(--card)",
-        border: `1px solid ${canPostDirect ? "#22c55e30" : "var(--border)"}`,
-        borderRadius: "var(--radius)",
-        padding: "12px 14px",
-        marginBottom: 16,
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-      }}>
-        <div style={{fontSize:22,flexShrink:0}}>{canPostDirect ? "⚡" : "⏳"}</div>
-        <div>
-          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:14,textTransform:"uppercase",letterSpacing:.5,color:canPostDirect?"var(--success)":"var(--text)",marginBottom:2}}>
-            {canPostDirect ? "Publicação Imediata" : "Revisão pela Moderação"}
-          </div>
-          <div style={{fontSize:12,color:"var(--muted)",lineHeight:1.4}}>
-            {canPostDirect
-              ? "Seu plano Premium libera anúncios automaticamente, sem esperar aprovação."
-              : "Seus anúncios passam pela moderação antes de aparecer no marketplace. Assine Premium para publicação imediata."}
-          </div>
-        </div>
-      </div>
       {step === 1 ? (
         <>
           <div className="card" style={{ borderColor: "#f5a62325", marginBottom: 20 }}>
@@ -1755,7 +1316,7 @@ function SellScreen({ user }) {
 }
 
 // ─── PROFILE ──────────────────────────────────────────────────────────────────
-function ProfileScreen({ user, onLogout, onUpdateUser, setScreen }) {
+function ProfileScreen({ user, onLogout, onUpdateUser }) {
   const [myParts, setMyParts] = useState([]);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [photo, setPhoto] = useState(user?.photo || null);
@@ -1765,7 +1326,6 @@ function ProfileScreen({ user, onLogout, onUpdateUser, setScreen }) {
   const [time, setTime] = useState("");
   const [location, setLocation] = useState("");
   const isSeller = user?.type === "seller";
-  const { isPremium, plan, planExpiresAt } = getPlan(user);
   const initials = (user?.name || "U").split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
   const photoInputRef = useRef();
   const [show, toastEl] = useToast();
@@ -1898,51 +1458,6 @@ function ProfileScreen({ user, onLogout, onUpdateUser, setScreen }) {
         ))}
         {time && <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, marginBottom: 8 }}><span style={{ color: "var(--muted)" }}>Hora local</span><span>{time}</span></div>}
         {location && <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}><span style={{ color: "var(--muted)" }}>Localização</span><span style={{fontFamily:"monospace",fontSize:11}}>{location}</span></div>}
-      </div>
-
-      {/* Card do Plano */}
-      <div className="card" style={{
-        marginBottom: 16,
-        background: isPremium ? "linear-gradient(135deg,#1a1500,#111)" : "var(--card)",
-        border: isPremium ? "1px solid #f59e0b40" : "1px solid var(--border)",
-      }}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-          <div style={{fontSize:11,fontWeight:600,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".6px"}}>Meu Plano</div>
-          <PlanBadge plan={plan} />
-        </div>
-        {isPremium ? (
-          <>
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-              <span style={{fontSize:20}}>⭐</span>
-              <div>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,color:"#f59e0b"}}>
-                  {isSeller ? "Vendedor Premium" : "Comprador Premium"}
-                </div>
-                {planExpiresAt && (
-                  <div style={{fontSize:11,color:"var(--muted)"}}>
-                    Válido até {new Date(planExpiresAt).toLocaleDateString("pt-BR")}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div style={{fontSize:12,color:"var(--muted)",lineHeight:1.5}}>
-              {isSeller
-                ? "✅ Publicação direta · ✅ Busca por placa · ✅ Sem moderação"
-                : "✅ Busca por placa · ✅ Orientações técnicas · ✅ Peças mais quebradas"}
-            </div>
-          </>
-        ) : (
-          <>
-            <div style={{fontSize:13,color:"var(--muted)",marginBottom:12,lineHeight:1.5}}>
-              {isSeller
-                ? "Seus anúncios passam pela moderação. Assine o Premium para publicação imediata."
-                : "Você tem acesso ao catálogo básico. Assine o Premium para busca por placa e orientações técnicas."}
-            </div>
-            <button className="btn btn-primary" style={{background:"linear-gradient(90deg,#f59e0b,#d97706)",color:"#000"}} onClick={() => setScreen("upgrade")}>
-              ⭐ Assinar Premium
-            </button>
-          </>
-        )}
       </div>
 
       <button className="btn btn-danger" onClick={logout}><Icons.Logout /> Sair da conta</button>
@@ -2139,8 +1654,6 @@ export default function App() {
               email: result.user.email,
               photo: result.user.photoURL || null,
               type: "buyer",
-              plan: "free",
-              planExpiresAt: null,
               sellerVerified: false,
               active: true,
               createdAt: new Date().toISOString(),
@@ -2219,7 +1732,7 @@ export default function App() {
 
   if (!user) return <AuthScreen onLogin={u => { setUser(u); setScreen("home"); }} />;
 
-  const { isPremium, isSeller, isAdmin } = getPlan(user);
+  const isSeller = user?.type === "seller";
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
 
   const navItems = [
@@ -2227,59 +1740,10 @@ export default function App() {
     { key: "search", label: "Buscar", icon: <Icons.Search /> },
     { key: "marketplace", label: "Loja", icon: <Icons.Shop /> },
     { key: "orders", label: "Pedidos", icon: <Icons.Orders /> },
-    ...(isSeller
-      ? [{ key: "sell", label: "Vender", icon: <Icons.Sell /> }, { key: "profile", label: "Perfil", icon: <Icons.User /> }]
-      : [{ key: "profile", label: "Perfil", icon: <Icons.User /> }]
-    ),
+    ...(isSeller ? [{ key: "sell", label: "Vender", icon: <Icons.Sell /> }, { key: "profile", label: "Perfil", icon: <Icons.User /> }] : [{ key: "profile", label: "Perfil", icon: <Icons.User /> }]),
   ];
 
-  // Reload user from Firestore (ex: após upgrade de plano)
-  const reloadUser = async () => {
-    await initFirebase();
-    const snap = await firebaseFirestore.getDoc(firebaseFirestore.doc(firebaseFirestore.instance, "users", user.uid));
-    if (snap.exists()) setUser({ uid: user.uid, email: user.email, ...snap.data() });
-  };
-
-  // Telas fullscreen (sem nav)
-  if (screen === "upgrade") return (
-    <div className="app">
-      {toastEl}
-      <UpgradeScreen
-        user={user}
-        onBack={() => setScreen("profile")}
-        onUpgradeSuccess={async () => { await reloadUser(); setScreen("profile"); }}
-      />
-    </div>
-  );
-
-  if (screen === "admin_moderacao" && isAdmin) {
-    // Importa dinamicamente para não pesar o bundle
-    const AdminModeracaoScreen = window.__AdminModeracaoScreen;
-    return (
-      <div className="app">
-        {toastEl}
-        {AdminModeracaoScreen
-          ? <AdminModeracaoScreen user={user} />
-          : (
-            <div className="screen screen-inner">
-              <div className="page-title">Moderação</div>
-              <div className="page-sub">Carregando painel admin...</div>
-              <div className="spinner" />
-              <div style={{fontSize:12,color:"var(--muted)",marginTop:20,lineHeight:1.6}}>
-                💡 Importe e registre o AdminModeracaoScreen no App.jsx para habilitar este painel.<br/>
-                Veja a documentação no arquivo AdminModeracaoScreen.jsx.
-              </div>
-              <button className="btn btn-secondary" style={{marginTop:20}} onClick={() => setScreen("home")}>
-                <Icons.Back /> Voltar ao Início
-              </button>
-            </div>
-          )
-        }
-      </div>
-    );
-  }
-
-  // Peça selecionada
+  // Se há peça selecionada, mostra detalhe
   if (selectedPart) return (
     <div className="app">
       {toastEl}
@@ -2304,12 +1768,6 @@ export default function App() {
       <div className="topbar">
         <div className="topbar-logo">AUTO<span style={{color:"var(--white)",fontWeight:400}}>STORE</span></div>
         <div className="topbar-right">
-          {!isPremium && (
-            <button
-              onClick={() => setScreen("upgrade")}
-              style={{background:"linear-gradient(90deg,#f59e0b,#d97706)",color:"#000",border:"none",borderRadius:"var(--radius-sm)",padding:"6px 12px",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:12,letterSpacing:.5,textTransform:"uppercase",cursor:"pointer",marginRight:8}}
-            >⭐ Premium</button>
-          )}
           <button className="cart-btn" onClick={() => setScreen("cart")}>
             <Icons.Cart />
             Carrinho
@@ -2319,14 +1777,14 @@ export default function App() {
       </div>
 
       {screen === "home" && <HomeScreen user={user} setScreen={setScreen} cartCount={cartCount} />}
-      {screen === "search" && <SearchScreen user={user} onVehicleFound={d => { setVehicleData(d); setScreen("results"); }} onUpgrade={() => setScreen("upgrade")} />}
-      {screen === "results" && vehicleData && <ResultsScreen vehicleData={vehicleData} onBack={() => setScreen("search")} onSelectPart={setSelectedPart} onUpgrade={() => setScreen("upgrade")} />}
+      {screen === "search" && <SearchScreen onVehicleFound={d => { setVehicleData(d); setScreen("results"); }} />}
+      {screen === "results" && vehicleData && <ResultsScreen vehicleData={vehicleData} onBack={() => setScreen("search")} onSelectPart={setSelectedPart} />}
       {screen === "marketplace" && <MarketplaceScreen onSelectPart={setSelectedPart} />}
       {screen === "cart" && <CartScreen cart={cart} onUpdateQty={updateQty} onRemove={removeFromCart} onCheckout={checkout} loading={cartLoading} />}
       {screen === "orders" && <OrdersScreen user={user} />}
       {screen === "sell" && isSeller && <SellScreen user={user} />}
       {screen === "support" && <SupportScreen user={user} />}
-      {screen === "profile" && <ProfileScreen user={user} onLogout={() => setUser(null)} onUpdateUser={setUser} setScreen={setScreen} />}
+      {screen === "profile" && <ProfileScreen user={user} onLogout={() => setUser(null)} onUpdateUser={setUser} />}
       {screen === "payment_success" && <PaymentSuccessScreen setScreen={setScreen} clearCart={clearCart} />}
       {screen === "payment_failure" && <PaymentFailureScreen setScreen={setScreen} />}
       {screen === "payment_pending" && <PaymentPendingScreen setScreen={setScreen} />}

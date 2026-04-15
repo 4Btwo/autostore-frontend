@@ -439,14 +439,19 @@ function AuthScreen({ onLogin }) {
   };
 
   return (
-    <div className="auth-screen" style={{minHeight:"100vh",display:"flex",flexDirection:"column",background:"var(--black)"}}>
+    <div className="auth-screen" style={{minHeight:"100vh",display:"flex",flexDirection:"column",background:"var(--bg)"}}>
       {toastEl}
       {/* Hero com imagem real - login.html style */}
       <div className="auth-hero">
         <img src="https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=840&q=75&auto=format&fit=crop" alt="AutoStore" />
         <div className="auth-hero-overlay" />
         <div className="auth-hero-logo">
-          <div className="auth-logo-text">AUTO<span>STORE</span></div>
+          <div style={{display:"flex",alignItems:"center",gap:10,justifyContent:"center"}}>
+            <div style={{width:44,height:44,background:"var(--primary)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <span style={{color:"#fff",fontSize:24,fontWeight:800}}>A</span>
+            </div>
+            <span style={{fontSize:38,fontWeight:800,color:"#fff",letterSpacing:1}}>AutoStore</span>
+          </div>
           <div className="auth-logo-sub">Marketplace Automotivo</div>
         </div>
       </div>
@@ -454,7 +459,12 @@ function AuthScreen({ onLogin }) {
       <div className="auth-box">
         {/* Logo visível apenas no desktop */}
         <div className="auth-desktop-logo">
-          <div className="auth-desktop-logo-text">AUTO<span>STORE</span></div>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{width:44,height:44,background:"var(--primary)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <span style={{color:"#fff",fontSize:24,fontWeight:800}}>A</span>
+          </div>
+          <span style={{fontSize:38,fontWeight:800,color:"var(--text)",letterSpacing:1}}>AutoStore</span>
+        </div>
           <div className="auth-desktop-logo-sub">Marketplace Automotivo</div>
         </div>
         <div className="auth-tabs">
@@ -501,74 +511,138 @@ function AuthScreen({ onLogin }) {
 // ─── HOME ─────────────────────────────────────────────────────────────────────
 function HomeScreen({ user, setScreen, cartCount }) {
   const isSeller = user?.type === "seller";
+  const firstName = user?.name?.split(" ")[0] || "Usuário";
+
+  const categories = [
+    { icon: "🔧", label: "Motor" },
+    { icon: "🛞", label: "Freios" },
+    { icon: "💡", label: "Elétrica" },
+    { icon: "❄️", label: "Arrefec." },
+    { icon: "⛽", label: "Combustível" },
+    { icon: "🔩", label: "Suspensão" },
+  ];
+
   return (
     <div className="screen" style={{paddingBottom:90}}>
-      {/* Hero com imagem real - home.html style */}
+      {/* HERO */}
       <div className="hero">
         <img className="hero-img"
-          style={{animationName:"heroZoom",animationDuration:"10s",animationTimingFunction:"ease-out",animationFillMode:"forwards"}}
-          src="https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=840&q=75&auto=format&fit=crop"
-          alt="Oficina mecânica" />
+          src="https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=840&q=80&auto=format&fit=crop"
+          alt="AutoStore" />
         <div className="hero-overlay" />
         <div className="hero-content">
-          <div className="brand-mark">
-            <div className="brand-dot" />
-            <div className="brand-name">AUTO<span>STORE</span></div>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+            <div style={{width:8,height:8,borderRadius:"50%",background:"var(--accent)",animation:"pulseDot 2s ease-in-out infinite"}} />
+            <span style={{fontSize:11,color:"rgba(255,255,255,.6)",letterSpacing:"1.5px",textTransform:"uppercase",fontWeight:500}}>Marketplace Automotivo</span>
           </div>
-          <div className="hero-tagline">Olá, {user?.name?.split(" ")[0]} 👋 · Marketplace Automotivo</div>
+          <div style={{fontSize:26,fontWeight:800,color:"#fff",lineHeight:1.15,marginBottom:8}}>
+            Peças e acessórios<br/>automotivos<br/>
+            <span style={{color:"var(--primary3)"}}>de qualidade</span>
+          </div>
+          <div style={{fontSize:13,color:"rgba(255,255,255,.55)",marginBottom:16}}>
+            Olá, {firstName} 👋 Encontre o que seu carro precisa.
+          </div>
+          <button className="btn btn-primary" style={{width:"auto",padding:"11px 22px",fontSize:14}}
+            onClick={() => setScreen("search")}>
+            Explorar Produtos →
+          </button>
         </div>
       </div>
 
-      {/* Promo strip - home.html style */}
-      <button className="promo-strip" onClick={() => setScreen("search")}>
-        <div>
-          <div className="promo-strip-text">Buscar pela placa</div>
-          <div className="promo-strip-sub">Encontre a peça certa para seu veículo</div>
+      {/* CATEGORIES */}
+      <div style={{padding:"18px 18px 4px"}}>
+        <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:4,scrollbarWidth:"none"}}>
+          {categories.map((cat, i) => (
+            <button key={i} onClick={() => setScreen("marketplace")}
+              style={{flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",gap:6,
+                background:"var(--card)",border:"1px solid var(--border)",borderRadius:12,
+                padding:"12px 14px",cursor:"pointer",transition:"all .2s",minWidth:72,color:"var(--text)"}}>
+              <span style={{fontSize:20}}>{cat.icon}</span>
+              <span style={{fontSize:11,fontWeight:600,whiteSpace:"nowrap"}}>{cat.label}</span>
+            </button>
+          ))}
         </div>
-        <div className="promo-strip-arrow">→</div>
-      </button>
+      </div>
 
-      <div className="section-label">Navegação</div>
-      <div className="section-title">O que você precisa?</div>
-
-      <div className="super-grid">
-        <div className="super-card anim-fade-up delay-1" onClick={() => setScreen("search")}>
-          <div className="super-icon">🚗</div>
-          <div className="super-title">Buscar Veículo</div>
-          <div className="super-sub">Por placa ou modelo</div>
-        </div>
-        <div className="super-card anim-fade-up delay-2" onClick={() => setScreen("marketplace")}>
-          <div className="super-icon">🔧</div>
-          <div className="super-title">Catálogo OEM</div>
-          <div className="super-sub">Referências originais</div>
-        </div>
-        <div className="super-card anim-fade-up delay-2" onClick={() => setScreen("marketplace")}>
-          <div className="super-icon">🛒</div>
-          <div className="super-title">Marketplace</div>
-          <div className="super-sub">Comprar peças <span className="badge badge-new" style={{fontSize:9,padding:"2px 6px"}}>Novo</span></div>
-        </div>
-        <div className="super-card anim-fade-up delay-3" onClick={() => setScreen("orders")}>
-          <div className="super-icon">📦</div>
-          <div className="super-title">Meus Pedidos</div>
-          <div className="super-sub">Acompanhar entregas</div>
-        </div>
-        {isSeller && (
-          <div className="super-card anim-fade-up delay-4" onClick={() => setScreen("sell")}>
-            <div className="super-icon">💰</div>
-            <div className="super-title">Anunciar Peça</div>
-            <div className="super-sub">Vender pelo OEM</div>
+      {/* QUICK SEARCH BANNER */}
+      <div style={{padding:"14px 18px"}}>
+        <button onClick={() => setScreen("search")}
+          style={{width:"100%",background:"linear-gradient(135deg,var(--primary),var(--primary2))",
+            border:"none",borderRadius:14,padding:"18px 20px",cursor:"pointer",
+            display:"flex",alignItems:"center",justifyContent:"space-between",transition:"filter .2s"}}
+          onMouseOver={e=>e.currentTarget.style.filter="brightness(1.1)"}
+          onMouseOut={e=>e.currentTarget.style.filter=""}>
+          <div style={{textAlign:"left"}}>
+            <div style={{fontSize:15,fontWeight:700,color:"#fff",marginBottom:3}}>Buscar pela placa</div>
+            <div style={{fontSize:12,color:"rgba(255,255,255,.75)"}}>Encontre a peça certa para seu veículo</div>
           </div>
-        )}
-        <div className="super-card anim-fade-up delay-4" onClick={() => setScreen("profile")}>
-          <div className="super-icon">👤</div>
-          <div className="super-title">Perfil</div>
-          <div className="super-sub">Conta e anúncios</div>
+          <div style={{fontSize:28,color:"rgba(255,255,255,.9)"}}>→</div>
+        </button>
+      </div>
+
+      {/* QUICK ACTIONS */}
+      <div style={{padding:"4px 18px 0"}}>
+        <div style={{fontSize:11,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:"1px",marginBottom:12}}>Acesso Rápido</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <button className="super-card anim-fade-up delay-1" onClick={() => setScreen("marketplace")}>
+            <div className="super-icon">🛒</div>
+            <div className="super-title">Marketplace</div>
+            <div className="super-sub">Comprar peças</div>
+          </button>
+          <button className="super-card anim-fade-up delay-2" onClick={() => setScreen("orders")}>
+            <div className="super-icon">📦</div>
+            <div className="super-title">Meus Pedidos</div>
+            <div className="super-sub">Acompanhar</div>
+          </button>
+          {isSeller && (
+            <button className="super-card anim-fade-up delay-3" onClick={() => setScreen("sell")}>
+              <div className="super-icon">💰</div>
+              <div className="super-title">Anunciar</div>
+              <div className="super-sub">Vender pelo OEM</div>
+            </button>
+          )}
+          <button className="super-card anim-fade-up delay-4" onClick={() => setScreen("support")}>
+            <div className="super-icon">💬</div>
+            <div className="super-title">Suporte</div>
+            <div className="super-sub">Central de ajuda</div>
+          </button>
         </div>
-        <div className="super-card anim-fade-up delay-5" onClick={() => setScreen("support")}>
-          <div className="super-icon">💬</div>
-          <div className="super-title">Suporte</div>
-          <div className="super-sub">Central de ajuda</div>
+      </div>
+
+      {/* FEATURED STORES */}
+      <div style={{padding:"20px 18px 0"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <div style={{fontSize:16,fontWeight:700,color:"var(--text)"}}>Lojas em Destaque</div>
+          <button onClick={() => setScreen("marketplace")}
+            style={{fontSize:12,color:"var(--primary3)",background:"none",border:"none",cursor:"pointer",fontWeight:600}}>
+            Ver todas →
+          </button>
         </div>
+        {[
+          {name:"AutoPeças Central",tag:"Peças OEM certificadas",img:"https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=400&q=70&auto=format&fit=crop"},
+          {name:"Freios & Suspensão",tag:"Especialista em freios",img:"https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=70&auto=format&fit=crop"},
+        ].map((store, i) => (
+          <button key={i} onClick={() => setScreen("marketplace")}
+            style={{width:"100%",background:"var(--card)",border:"1px solid var(--border)",
+              borderRadius:14,overflow:"hidden",marginBottom:10,cursor:"pointer",
+              display:"flex",alignItems:"stretch",transition:"border-color .2s",textAlign:"left"}}
+            onMouseOver={e=>e.currentTarget.style.borderColor="var(--primary)"}
+            onMouseOut={e=>e.currentTarget.style.borderColor="var(--border)"}>
+            <img src={store.img} alt={store.name}
+              style={{width:100,height:80,objectFit:"cover",flexShrink:0}} />
+            <div style={{padding:"12px 14px",display:"flex",flexDirection:"column",justifyContent:"space-between",flex:1}}>
+              <div>
+                <div style={{fontSize:14,fontWeight:700,color:"var(--text)",marginBottom:3}}>{store.name}</div>
+                <div style={{fontSize:12,color:"var(--muted)"}}>{store.tag}</div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                <span style={{fontSize:11,background:"rgba(59,130,246,.12)",color:"var(--primary3)",
+                  padding:"3px 10px",borderRadius:99,fontWeight:600}}>Ver Loja</span>
+                <span style={{color:"var(--muted)",fontSize:16}}>›</span>
+              </div>
+            </div>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -961,7 +1035,7 @@ function PartDetailScreen({ part, onBack, onAddToCart }) {
               <span className="qty-val">{qty}</span>
               <button className="qty-btn" onClick={() => setQty(q => Math.min(maxQty, q + 1))}>+</button>
             </div>
-            <div style={{ fontSize: 13, color: "var(--muted)" }}>Total: <strong style={{ color: "var(--orange)" }}>{fmt(data?.price * qty)}</strong></div>
+            <div style={{ fontSize: 13, color: "var(--muted)" }}>Total: <strong style={{ color: "var(--accent)" }}>{fmt(data?.price * qty)}</strong></div>
           </div>
           <button className="btn btn-primary" onClick={addToCart}>
             <Icons.Cart /> Adicionar ao Carrinho
@@ -1130,7 +1204,7 @@ function OrdersScreen({ user }) {
           ))}
           <div className="order-total-row">
             <span style={{ fontWeight: 600 }}>Total</span>
-            <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 22, color: "var(--orange)" }}>{fmt(order.total)}</span>
+            <span style={{ fontFamily: "'Inter',sans-serif", fontSize: 22, color: "var(--accent)" }}>{fmt(order.total)}</span>
           </div>
           {order.status === "delivered" && !order.reviewed && (
             <button className="btn btn-secondary" style={{marginTop:10,fontSize:13}} onClick={() => setReviewing(order)}>
@@ -1721,10 +1795,15 @@ export default function App() {
   };
 
   if (authLoading) return (
-    <div style={{ minHeight: "100vh", background: "var(--black)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div style={{ minHeight: "100vh", background: "#0F172A", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <style>{styles}</style>
       <div style={{ textAlign: "center" }}>
-        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 44, color: "var(--orange)", letterSpacing: 3 }}>AUTOSTORE</div>
+        <div style={{ display:"flex",alignItems:"center",gap:10,justifyContent:"center",marginBottom:16 }}>
+          <div style={{ width:40,height:40,background:"var(--primary)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center" }}>
+            <span style={{ color:"#fff",fontSize:22,fontWeight:800 }}>A</span>
+          </div>
+          <span style={{ fontSize:28,fontWeight:800,color:"#fff",letterSpacing:1 }}>AutoStore</span>
+        </div>
         <div className="spinner" />
       </div>
     </div>
@@ -1748,7 +1827,12 @@ export default function App() {
     <div className="app">
       {toastEl}
       <div className="topbar">
-        <div className="topbar-logo">AUTO<span style={{color:"var(--white)",fontWeight:400}}>STORE</span></div>
+        <div className="topbar-logo" style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{width:30,height:30,background:"var(--primary)",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <span style={{color:"#fff",fontSize:16,fontWeight:800}}>A</span>
+          </div>
+          <span style={{fontSize:18,fontWeight:800,color:"var(--text)",letterSpacing:.5}}>AutoStore</span>
+        </div>
         <button className="cart-btn" onClick={() => { setSelectedPart(null); setScreen("cart"); }}>
           <Icons.Cart />
           {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
@@ -1766,7 +1850,12 @@ export default function App() {
     <div className="app">
       {toastEl}
       <div className="topbar">
-        <div className="topbar-logo">AUTO<span style={{color:"var(--white)",fontWeight:400}}>STORE</span></div>
+        <div className="topbar-logo" style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{width:30,height:30,background:"var(--primary)",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <span style={{color:"#fff",fontSize:16,fontWeight:800}}>A</span>
+          </div>
+          <span style={{fontSize:18,fontWeight:800,color:"var(--text)",letterSpacing:.5}}>AutoStore</span>
+        </div>
         <div className="topbar-right">
           <button className="cart-btn" onClick={() => setScreen("cart")}>
             <Icons.Cart />

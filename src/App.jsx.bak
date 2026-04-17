@@ -372,57 +372,6 @@ const styles = `
   .stat-lbl{font-size:11px;color:var(--muted);margin-top:2px}
   .seller-rating{display:flex;align-items:center;gap:6px}
   .chat-msg-user{font-size:11px;color:var(--primary3);font-weight:600;margin-bottom:2px}
-
-  /* ── PREMIUM GATE ── */
-  .premium-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:500;display:flex;align-items:flex-end;justify-content:center}
-  .premium-sheet{background:var(--card);border-radius:20px 20px 0 0;padding:28px 22px 44px;width:100%;max-width:480px;animation:slideUp .35s cubic-bezier(.16,1,.3,1)}
-  .premium-icon-wrap{width:64px;height:64px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px}
-  .premium-title{font-size:22px;font-weight:800;text-align:center;margin-bottom:6px}
-  .premium-sub{font-size:14px;color:var(--muted);text-align:center;margin-bottom:20px;line-height:1.5}
-  .premium-feature-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
-  .premium-feature-row:last-of-type{border-bottom:none;padding-bottom:0}
-  .premium-feature-icon{font-size:18px;width:26px;text-align:center}
-  .premium-feature-text{font-size:14px;color:var(--text2);line-height:1.4}
-  .plan-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:12px;position:relative;overflow:hidden}
-  .plan-card.featured{border-color:#f59e0b;background:linear-gradient(135deg,rgba(245,158,11,.07),var(--card))}
-  .plan-badge-top{position:absolute;top:0;right:0;background:#f59e0b;color:#000;font-size:10px;font-weight:700;padding:4px 14px;border-radius:0 var(--radius) 0 var(--radius-sm);letter-spacing:.5px;text-transform:uppercase}
-  .plan-name{font-size:20px;font-weight:800;margin-bottom:4px}
-  .plan-price{font-size:36px;font-weight:800;color:var(--accent);line-height:1;margin-bottom:2px}
-  .plan-price-sub{font-size:12px;color:var(--muted);margin-bottom:16px}
-  .plan-feature{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--text2);margin-bottom:9px;line-height:1.4}
-  .plan-check{color:var(--accent);font-size:14px;flex-shrink:0;margin-top:1px}
-  .plan-lock{color:var(--muted);font-size:14px;flex-shrink:0;margin-top:1px}
-  .store-hub-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:all .2s;margin-bottom:10px}
-  .store-hub-card:hover{border-color:var(--primary);transform:translateY(-2px);box-shadow:0 6px 24px rgba(59,130,246,.1)}
-  .store-hub-banner{width:100%;height:88px;object-fit:cover;background:var(--card2)}
-  .store-hub-body{padding:12px 14px 14px}
-  .store-hub-header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-  .store-hub-avatar{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--primary4));display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;color:#fff;flex-shrink:0;border:2px solid var(--border)}
-  .store-hub-name{font-size:15px;font-weight:700;color:var(--text)}
-  .store-hub-spec{font-size:12px;color:var(--muted)}
-  .store-hub-stats{display:flex;gap:14px;font-size:12px;color:var(--muted)}
-  .store-hub-premium{display:inline-flex;align-items:center;gap:4px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.28);color:#f59e0b;font-size:10px;font-weight:700;padding:2px 9px;border-radius:99px;letter-spacing:.5px}
-  .minha-loja-banner{width:100%;height:155px;object-fit:cover;background:linear-gradient(135deg,var(--primary4),var(--primary2));border-radius:var(--radius) var(--radius) 0 0;display:flex;align-items:center;justify-content:center;font-size:56px}
-  .minha-loja-header{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px}
-  .minha-loja-info{padding:14px 16px}
-  .minha-loja-name{font-size:22px;font-weight:800;margin-bottom:2px}
-  .minha-loja-spec{font-size:13px;color:var(--muted);margin-bottom:10px}
-  .minha-loja-stat-row{display:flex;gap:8px}
-  .minha-loja-stat{flex:1;background:var(--card2);border-radius:var(--radius-sm);padding:10px;text-align:center}
-  .minha-loja-stat-num{font-size:20px;font-weight:800}
-  .minha-loja-stat-lbl{font-size:11px;color:var(--muted);margin-top:2px}
-  .fav-btn{background:none;border:none;font-size:22px;cursor:pointer;padding:4px;transition:transform .15s;line-height:1}
-  .fav-btn:active{transform:scale(1.3)}
-  .upgrade-chip{display:inline-flex;align-items:center;gap:5px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);color:#f59e0b;font-size:11px;font-weight:600;padding:4px 12px;border-radius:99px;cursor:pointer;transition:all .2s}
-  .upgrade-chip:hover{background:rgba(245,158,11,.2)}
-  .tab-bar{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px;overflow-x:auto;scrollbar-width:none}
-  .tab-bar::-webkit-scrollbar{display:none}
-  .tab-btn{flex-shrink:0;padding:10px 16px;font-size:13px;font-weight:600;color:var(--muted);border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;white-space:nowrap}
-  .tab-btn.active{color:var(--primary3);border-bottom-color:var(--primary)}
-  .alert-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;display:flex;align-items:center;gap:10px;margin-bottom:8px}
-  .alert-card-icon{font-size:20px;flex-shrink:0}
-  .alert-card-name{font-size:14px;font-weight:600;color:var(--text)}
-  .alert-card-price{font-size:13px;color:var(--muted)}
 `
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -438,33 +387,6 @@ function useToast() {
   const show = (msg, type = "error") => setToast({ msg, type });
   const el = toast ? <Toast {...toast} onDone={() => setToast(null)} /> : null;
   return [show, el];
-}
-
-// ─── PREMIUM GATE ─────────────────────────────────────────────────────────────
-function PremiumGate({ title, desc, features, onClose, onUpgrade }) {
-  return (
-    <div className="premium-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="premium-sheet">
-        <div className="premium-icon-wrap">⭐</div>
-        <div className="premium-title">{title || "Recurso Premium"}</div>
-        <div className="premium-sub">{desc || "Faça upgrade para acessar este recurso."}</div>
-        {features && (
-          <div style={{marginBottom:20}}>
-            {features.map((f, i) => (
-              <div key={i} className="premium-feature-row">
-                <div className="premium-feature-icon">{f.icon}</div>
-                <div className="premium-feature-text">{f.text}</div>
-              </div>
-            ))}
-          </div>
-        )}
-        <button className="btn btn-primary" style={{background:"linear-gradient(135deg,#f59e0b,#d97706)",marginBottom:10}} onClick={onUpgrade}>
-          ⭐ Ver Planos Premium
-        </button>
-        <button className="btn btn-secondary" onClick={onClose}>Agora não</button>
-      </div>
-    </div>
-  );
 }
 
 // ─── STARS ────────────────────────────────────────────────────────────────────
@@ -500,9 +422,6 @@ const Icons = {
   Logout: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
   Chat: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
   Check: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>,
-  Store: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg>,
-  Star: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
-  Crown: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 20h20M5 20V10l7-6 7 6v10"/></svg>,
 };
 
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
@@ -571,7 +490,7 @@ function AuthScreen({ onLogin }) {
       await initFirebase();
       const cred = await firebaseAuth.createUserWithEmailAndPassword(firebaseAuth.instance, form.email, form.password);
       await firebaseFirestore.setDoc(firebaseFirestore.doc(firebaseFirestore.instance, "users", cred.user.uid),
-        { name: form.name, email: form.email, type: form.type, plan: "free", sellerVerified: false, active: true, createdAt: new Date().toISOString() });
+        { name: form.name, email: form.email, type: form.type, sellerVerified: false, active: true, createdAt: new Date().toISOString() });
       show("Conta criada! Faça login.", "success");
       setTab("login");
     } catch (e) {
@@ -634,17 +553,11 @@ function AuthScreen({ onLogin }) {
             <div className="input-wrap"><label className="label">Nome</label><input className="input" placeholder="Seu nome completo" value={form.name} onChange={set("name")} /></div>
             <div className="input-wrap"><label className="label">Email</label><input className="input" type="email" placeholder="seu@email.com" value={form.email} onChange={set("email")} /></div>
             <div className="input-wrap"><label className="label">Senha</label><input className="input" type="password" placeholder="mín. 6 caracteres" value={form.password} onChange={set("password")} /></div>
-            <div className="input-wrap">
-              <label className="label">Tipo de conta</label>
-              <div style={{display:"flex",gap:8,marginTop:4}}>
-                {[{v:"buyer",icon:"🛒",label:"Comprador"},{v:"seller",icon:"🏪",label:"Vendedor"}].map(o => (
-                  <button key={o.v} onClick={() => setForm(f=>({...f,type:o.v}))}
-                    style={{flex:1,padding:"12px 8px",borderRadius:"var(--radius-sm)",border:`2px solid ${form.type===o.v?"var(--primary)":"var(--border2)"}`,background:form.type===o.v?"rgba(59,130,246,.1)":"var(--card)",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,transition:"all .2s"}}>
-                    <span style={{fontSize:22}}>{o.icon}</span>
-                    <span style={{fontSize:12,fontWeight:700,color:form.type===o.v?"var(--primary3)":"var(--muted)"}}>{o.label}</span>
-                  </button>
-                ))}
-              </div>
+            <div className="input-wrap"><label className="label">Tipo de conta</label>
+              <select className="input" value={form.type} onChange={set("type")}>
+                <option value="buyer">Comprador</option>
+                <option value="seller">Vendedor</option>
+              </select>
             </div>
             <button className="btn btn-primary" onClick={register} disabled={loading}>{loading ? "Criando conta..." : "Criar conta"}</button>
           </>
@@ -707,8 +620,8 @@ function HomeScreen({ user, setScreen, cartCount }) {
           </div>
           <button className="btn btn-primary anim-slide-up"
             style={{width:"auto",padding:"12px 24px",fontSize:14,borderRadius:10}}
-            onClick={() => setScreen("lojas")}>
-            Explorar Lojas
+            onClick={() => setScreen("marketplace")}>
+            Explorar Produtos
           </button>
         </div>
       </div>
@@ -725,34 +638,25 @@ function HomeScreen({ user, setScreen, cartCount }) {
         ))}
       </div>
 
-      {/* ── QUICK ACTIONS ROW ── */}
-      <div style={{display:"flex",gap:10,padding:"12px 16px 0"}}>
-        <button className="quick-banner" style={{flex:1,margin:0,width:"auto"}} onClick={() => setScreen("search")}>
-          <div style={{textAlign:"left"}}>
-            <div style={{fontSize:14,fontWeight:700,color:"#fff",marginBottom:2}}>🔍 Buscar pela placa</div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,.75)"}}>Peça certa para seu carro</div>
-          </div>
-          <div style={{fontSize:20,color:"rgba(255,255,255,.9)"}}>→</div>
-        </button>
-        <button className="quick-banner" style={{flex:1,margin:0,width:"auto",background:"linear-gradient(135deg,#0f6e56,#1d9e75)"}} onClick={() => setScreen("lojas")}>
-          <div style={{textAlign:"left"}}>
-            <div style={{fontSize:14,fontWeight:700,color:"#fff",marginBottom:2}}>🏪 Central de Lojas</div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,.75)"}}>Todas as lojas</div>
-          </div>
-          <div style={{fontSize:20,color:"rgba(255,255,255,.9)"}}>→</div>
-        </button>
-      </div>
+      {/* ── QUICK SEARCH BANNER ── */}
+      <button className="quick-banner" onClick={() => setScreen("search")}>
+        <div style={{textAlign:"left"}}>
+          <div style={{fontSize:15,fontWeight:700,color:"#fff",marginBottom:3}}>🔍 Buscar pela placa</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,.75)"}}>Encontre a peça certa para seu carro</div>
+        </div>
+        <div style={{fontSize:24,color:"rgba(255,255,255,.9)",fontWeight:900}}>→</div>
+      </button>
 
       {/* ── LOJAS EM DESTAQUE ── */}
       <div className="section-hdr">
         <span className="section-hdr-title">Lojas em Destaque</span>
-        <button className="section-hdr-link" onClick={() => setScreen("lojas")}>Ver todas →</button>
+        <button className="section-hdr-link" onClick={() => setScreen("marketplace")}>Ver todas →</button>
       </div>
 
       <div className="stores-grid">
         {stores.map((store, i) => (
           <div key={i} className={`store-card anim-fade-up delay-${i+1}`}
-            onClick={() => setScreen("lojas")}>
+            onClick={() => setScreen("marketplace")}>
             <img src={store.img} alt={store.name} className="store-card-img" />
             <div className="store-card-body">
               <div className="store-card-name">{store.name}</div>
@@ -798,7 +702,7 @@ function HomeScreen({ user, setScreen, cartCount }) {
               <span style={{fontSize:20}}>📦</span>
               <span style={{fontWeight:700,color:"#fff",fontSize:14}}>+ Novo Produto</span>
             </button>
-            <button className="dash-action-btn" onClick={() => setScreen("minha_loja")}>
+            <button className="dash-action-btn" onClick={() => setScreen("sell")}>
               <span style={{fontSize:20}}>🏪</span>
               <span style={{fontWeight:600,color:"var(--text)",fontSize:14}}>Ver Minha Loja</span>
             </button>
@@ -947,13 +851,9 @@ function SellDashboard({ user, setScreen }) {
           <span style={{fontSize:20}}>📦</span>
           <span style={{fontWeight:700,color:"#fff",fontSize:14}}>+ Novo Produto</span>
         </button>
-        <button className="dash-action-btn" onClick={() => setScreen("minha_loja")}>
+        <button className="dash-action-btn" onClick={() => setScreen("marketplace")}>
           <span style={{fontSize:20}}>🏪</span>
           <span style={{fontWeight:600,color:"var(--text)",fontSize:14}}>Ver Minha Loja</span>
-        </button>
-        <button className="dash-action-btn" onClick={() => setScreen("plans")}>
-          <span style={{fontSize:20}}>⭐</span>
-          <span style={{fontWeight:600,color:"var(--text)",fontSize:14}}>Planos e Assinatura</span>
         </button>
       </div>
     </div>
@@ -1712,7 +1612,7 @@ function SellFormScreen({ user, setScreen }) {
 }
 
 // ─── PROFILE ──────────────────────────────────────────────────────────────────
-function ProfileScreen({ user, onLogout, onUpdateUser, setScreen, requirePremium }) {
+function ProfileScreen({ user, onLogout, onUpdateUser }) {
   const [myParts, setMyParts] = useState([]);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [photo, setPhoto] = useState(user?.photo || null);
@@ -1722,7 +1622,6 @@ function ProfileScreen({ user, onLogout, onUpdateUser, setScreen, requirePremium
   const [time, setTime] = useState("");
   const [location, setLocation] = useState("");
   const isSeller = user?.type === "seller";
-  const isPremium = user?.plan === "premium";
   const initials = (user?.name || "U").split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
   const photoInputRef = useRef();
   const [show, toastEl] = useToast();
@@ -1828,10 +1727,6 @@ function ProfileScreen({ user, onLogout, onUpdateUser, setScreen, requirePremium
         <div style={{ fontSize: 20, fontWeight: 700 }}>{user?.name}</div>
         <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 6 }}>{user?.email}</div>
         <span className={`badge ${isSeller ? "badge-seller" : "badge-new"}`}>{isSeller ? "Vendedor" : "Comprador"}</span>
-        {isPremium
-          ? <span style={{marginTop:6,display:"inline-flex",alignItems:"center",gap:5,background:"linear-gradient(135deg,#f59e0b,#d97706)",color:"#000",fontSize:11,fontWeight:700,padding:"3px 12px",borderRadius:99,letterSpacing:.5}}>⭐ PREMIUM</span>
-          : <button className="upgrade-chip" style={{marginTop:6}} onClick={() => setScreen("plans")}>⭐ Upgrade para Premium</button>
-        }
       </div>
 
       {isSeller && (
@@ -1862,22 +1757,6 @@ function ProfileScreen({ user, onLogout, onUpdateUser, setScreen, requirePremium
       </div>
 
       <button className="btn btn-danger" onClick={logout}><Icons.Logout /> Sair da conta</button>
-
-      <div style={{height:8}} />
-      <button className="dash-action-btn" onClick={() => setScreen("plans")} style={{marginBottom:0}}>
-        <span style={{fontSize:20}}>⭐</span>
-        <div style={{textAlign:"left"}}>
-          <div style={{fontWeight:700,fontSize:14}}>{isPremium ? "Gerenciar Assinatura" : "Ver Planos Premium"}</div>
-          <div style={{fontSize:12,color:"var(--muted)"}}>{isPremium ? "Você é Premium ✅" : "Desbloqueie recursos exclusivos"}</div>
-        </div>
-      </button>
-      <button className="dash-action-btn" onClick={() => setScreen("support")} style={{marginTop:8}}>
-        <span style={{fontSize:20}}>💬</span>
-        <div style={{textAlign:"left"}}>
-          <div style={{fontWeight:700,fontSize:14}}>Suporte</div>
-          <div style={{fontSize:12,color:"var(--muted)"}}>Chat em tempo real</div>
-        </div>
-      </button>
     </div>
   );
 }
@@ -2024,420 +1903,6 @@ function SupportScreen({ user }) {
   );
 }
 
-// ─── CENTRAL DE LOJAS ─────────────────────────────────────────────────────────
-function CentralLojasScreen({ setScreen, setSelectedStore, user }) {
-  const [stores, setStores] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [activeSpec, setActiveSpec] = useState("Todas");
-  const [favorites, setFavorites] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("fav_stores") || "[]"); } catch { return []; }
-  });
-
-  const specialties = ["Todas","Motor","Suspensão","Freios","Elétrica","Câmbio","Carroceria","Acessórios"];
-
-  useEffect(() => {
-    fetch(`${API}/marketplaceParts`)
-      .then(r => r.json())
-      .then(d => {
-        const parts = d.data || [];
-        const storeMap = {};
-        parts.forEach(p => {
-          const sid = p.sellerId || p.seller?.uid;
-          const sname = p.seller?.name || "Loja";
-          if (sid && !storeMap[sid]) {
-            storeMap[sid] = {
-              id: sid,
-              name: sname,
-              photo: p.seller?.photo || null,
-              plan: p.seller?.plan || "free",
-              rating: p.seller?.ratingAvg || 0,
-              ratingCount: p.seller?.ratingCount || 0,
-              specialty: p.seller?.specialty || "Peças Automotivas",
-              partsCount: 0,
-            };
-          }
-          if (sid) storeMap[sid].partsCount++;
-        });
-        const list = Object.values(storeMap);
-        list.sort((a,b) => (b.plan==="premium"?1:0)-(a.plan==="premium"?1:0) || b.ratingCount-a.ratingCount);
-        setStores(list);
-      })
-      .catch(() => setStores([]))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const toggleFav = (id) => {
-    const next = favorites.includes(id) ? favorites.filter(f=>f!==id) : [...favorites, id];
-    setFavorites(next);
-    localStorage.setItem("fav_stores", JSON.stringify(next));
-  };
-
-  const filtered = stores.filter(s => {
-    const matchSearch = !search || s.name.toLowerCase().includes(search.toLowerCase());
-    const matchSpec = activeSpec === "Todas" || s.specialty?.includes(activeSpec);
-    return matchSearch && matchSpec;
-  });
-
-  return (
-    <div className="screen screen-inner">
-      <div className="page-title">Central de Lojas</div>
-      <div className="page-sub" style={{marginBottom:14}}>Encontre a loja certa para seu veículo</div>
-
-      <div style={{position:"relative",marginBottom:12}}>
-        <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",fontSize:16,pointerEvents:"none"}}>🔍</span>
-        <input className="input" style={{paddingLeft:38}} placeholder="Buscar loja..." value={search} onChange={e=>setSearch(e.target.value)} />
-      </div>
-
-      <div className="filter-bar" style={{marginBottom:14}}>
-        {specialties.map(s => (
-          <button key={s} className={`chip ${activeSpec===s?"active":""}`} onClick={() => setActiveSpec(s)}>{s}</button>
-        ))}
-      </div>
-
-      {loading ? <div className="spinner" /> : filtered.length === 0 ? (
-        <div className="empty"><div className="empty-icon">🏪</div><div className="empty-title">Nenhuma loja encontrada</div></div>
-      ) : filtered.map((store, i) => (
-        <div key={store.id} className={`store-hub-card anim-fade-up delay-${Math.min(i+1,6)}`}>
-          <div className="store-hub-banner" style={{display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#1e3a5f,#0f172a)",fontSize:32}}>
-            {store.photo ? <img src={store.photo} style={{width:"100%",height:"100%",objectFit:"cover"}} alt="" /> : "🏪"}
-          </div>
-          <div className="store-hub-body">
-            <div className="store-hub-header">
-              <div className="store-hub-avatar">{(store.name||"L")[0].toUpperCase()}</div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <div className="store-hub-name" style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{store.name}</div>
-                  {store.plan==="premium" && <span className="store-hub-premium">⭐ Premium</span>}
-                </div>
-                <div className="store-hub-spec">{store.specialty}</div>
-              </div>
-              <button className="fav-btn" onClick={e=>{e.stopPropagation();toggleFav(store.id)}} title="Favoritar loja">
-                {favorites.includes(store.id) ? "❤️" : "🤍"}
-              </button>
-            </div>
-            <div className="store-hub-stats">
-              {store.ratingCount > 0 && <span>⭐ {store.rating.toFixed(1)} ({store.ratingCount})</span>}
-              <span>📦 {store.partsCount} {store.partsCount===1?"peça":"peças"}</span>
-            </div>
-            <div style={{display:"flex",gap:8,marginTop:12}}>
-              <button className="btn btn-primary btn-sm" style={{flex:1}} onClick={() => { setSelectedStore(store); setScreen("store_profile"); }}>
-                Ver Loja
-              </button>
-              <button className="btn btn-secondary btn-sm" onClick={() => { setSelectedStore(store); setScreen("marketplace"); }}>
-                Ver Peças
-              </button>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ─── STORE PROFILE (buyer view) ───────────────────────────────────────────────
-function StoreProfileScreen({ store, onBack, onSelectPart, user }) {
-  const [parts, setParts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const isPremiumSeller = store?.plan === "premium";
-
-  useEffect(() => {
-    if (!store?.id) return;
-    fetch(`${API}/marketplaceParts?sellerId=${store.id}`)
-      .then(r => r.json())
-      .then(d => setParts(d.data || []))
-      .catch(() => [])
-      .finally(() => setLoading(false));
-  }, [store?.id]);
-
-  return (
-    <div className="screen store-profile-wrap">
-      <div style={{position:"sticky",top:0,zIndex:100,background:"var(--bg2)",padding:"14px 18px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",gap:10}}>
-        <button className="back-btn" onClick={onBack} style={{margin:0}}>
-          <Icons.Back /> Lojas
-        </button>
-      </div>
-      <div style={{height:160,background:"linear-gradient(135deg,#1e3a5f,#0f172a)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:64}}>
-        {store?.photo ? <img src={store.photo} style={{width:"100%",height:"100%",objectFit:"cover"}} alt="" /> : "🏪"}
-      </div>
-      <div style={{padding:"0 18px 20px"}}>
-        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginTop:14,marginBottom:8}}>
-          <div>
-            <div style={{fontSize:22,fontWeight:800,marginBottom:2}}>{store?.name}</div>
-            <div style={{fontSize:13,color:"var(--muted)"}}>{store?.specialty || "Peças Automotivas"}</div>
-          </div>
-          {isPremiumSeller && <span className="store-hub-premium" style={{marginTop:4}}>⭐ Premium</span>}
-        </div>
-        {store?.ratingCount > 0 && (
-          <div className="store-profile-rating">
-            <Stars value={Math.round(store.rating)} size="sm" />
-            <span style={{fontWeight:700}}>{store.rating.toFixed(1)}</span>
-            <span style={{color:"var(--muted)",fontSize:13}}>({store.ratingCount} avaliações)</span>
-          </div>
-        )}
-        {isPremiumSeller && (
-          <a href={`https://wa.me/?text=Olá, vi sua loja no AutoStore!`} target="_blank" rel="noreferrer"
-            style={{display:"flex",alignItems:"center",gap:8,background:"#25d366",color:"#fff",padding:"10px 14px",borderRadius:"var(--radius-sm)",textDecoration:"none",fontWeight:700,fontSize:13,marginBottom:14}}>
-            <span style={{fontSize:18}}>💬</span> Contato via WhatsApp
-          </a>
-        )}
-        <div style={{fontSize:11,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".8px",marginBottom:10}}>
-          Peças disponíveis ({parts.length})
-        </div>
-        {loading ? <div className="spinner" /> : parts.length === 0 ? (
-          <div className="empty"><div className="empty-icon">📦</div><div className="empty-title">Sem peças no momento</div></div>
-        ) : parts.map((item, i) => (
-          <div key={item.id} className={`part-card anim-fade-up delay-${Math.min(i+1,6)}`} onClick={() => onSelectPart(item)}>
-            <div className="part-icon">
-              {item.images?.[0] ? <img src={item.images[0]} alt="" style={{width:60,height:60,objectFit:"cover",borderRadius:"var(--radius-sm)"}} /> : "🔧"}
-            </div>
-            <div className="part-info">
-              <div className="part-name">{item.part?.name || item.name}</div>
-              <div className="part-oem">OEM: {item.part?.oemNumber || item.oemNumber}</div>
-              <div className="part-meta">
-                <span className={`badge badge-${item.condition==="new"?"new":"used"}`}>{item.condition==="new"?"Nova":"Usada"}</span>
-                {item.warrantyMonths > 0 && <span style={{fontSize:11,color:"var(--muted)"}}>🛡️ {item.warrantyMonths}m</span>}
-              </div>
-            </div>
-            <div className="part-price-col">
-              <div className="part-price">{fmt(item.price)}</div>
-              <div className="part-stock">{item.stock} un</div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── MINHA LOJA (seller view) ─────────────────────────────────────────────────
-function MinhaLojaScreen({ user, setScreen }) {
-  const [parts, setParts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [storeName, setStoreName] = useState(user?.name || "");
-  const [specialty, setSpecialty] = useState(user?.specialty || "");
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [show, toastEl] = useToast();
-  const isPremium = user?.plan === "premium";
-  const rating = user?.ratingAvg || 0;
-  const ratingCount = user?.ratingCount || 0;
-
-  useEffect(() => {
-    fetch(`${API}/marketplaceParts?sellerId=${user?.uid}`)
-      .then(r => r.json())
-      .then(d => setParts(d.data || []))
-      .catch(() => [])
-      .finally(() => setLoading(false));
-  }, []);
-
-  const saveStore = async () => {
-    setSaving(true);
-    try {
-      await initFirebase();
-      await firebaseFirestore.setDoc(
-        firebaseFirestore.doc(firebaseFirestore.instance, "users", user.uid),
-        { name: storeName, specialty }, { merge: true }
-      );
-      show("Loja atualizada! ✅", "success");
-      setEditing(false);
-    } catch { show("Erro ao salvar"); }
-    finally { setSaving(false); }
-  };
-
-  const shareLink = () => {
-    const url = `${window.location.origin}?store=${user?.uid}`;
-    if (navigator.share) {
-      navigator.share({ title: storeName, text: "Confira minha loja no AutoStore!", url });
-    } else {
-      navigator.clipboard?.writeText(url);
-      show("Link copiado! 📋", "success");
-    }
-  };
-
-  const totalStock = parts.reduce((s, p) => s + (p.stock || 0), 0);
-  const avgPrice = parts.length > 0 ? parts.reduce((s, p) => s + Number(p.price || 0), 0) / parts.length : 0;
-
-  return (
-    <div className="screen screen-inner">
-      {toastEl}
-      <div className="minha-loja-header">
-        <div className="minha-loja-banner">🏪</div>
-        <div className="minha-loja-info">
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
-            <div>
-              <div className="minha-loja-name">{storeName || "Minha Loja"}</div>
-              <div className="minha-loja-spec">{specialty || "Peças Automotivas"}</div>
-            </div>
-            {isPremium ? <span className="store-hub-premium">⭐ Premium</span> : (
-              <button className="upgrade-chip" onClick={() => setScreen("plans")}>⭐ Upgrade</button>
-            )}
-          </div>
-          {ratingCount > 0 && (
-            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10}}>
-              <Stars value={Math.round(rating)} size="sm" />
-              <span style={{fontWeight:700}}>{rating.toFixed(1)}</span>
-              <span style={{color:"var(--muted)",fontSize:13}}>({ratingCount})</span>
-            </div>
-          )}
-          <div className="minha-loja-stat-row">
-            <div className="minha-loja-stat"><div className="minha-loja-stat-num">{parts.length}</div><div className="minha-loja-stat-lbl">Anúncios</div></div>
-            <div className="minha-loja-stat"><div className="minha-loja-stat-num">{totalStock}</div><div className="minha-loja-stat-lbl">Em estoque</div></div>
-            <div className="minha-loja-stat"><div className="minha-loja-stat-num">{fmt(avgPrice).replace("R$","").trim()}</div><div className="minha-loja-stat-lbl">Preço médio</div></div>
-          </div>
-        </div>
-      </div>
-
-      <div className="btn-row" style={{marginBottom:14}}>
-        <button className="btn btn-secondary btn-sm" style={{flex:1}} onClick={shareLink}>🔗 Compartilhar</button>
-        <button className="btn btn-secondary btn-sm" style={{flex:1}} onClick={() => setEditing(!editing)}>{editing?"Cancelar":"✏️ Editar loja"}</button>
-        <button className="btn btn-primary btn-sm" style={{flex:1}} onClick={() => setScreen("sell_form")}>➕ Anunciar</button>
-      </div>
-
-      {editing && (
-        <div className="card" style={{marginBottom:14}}>
-          <div style={{fontSize:11,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".6px",marginBottom:12}}>Editar Loja</div>
-          <div className="input-wrap"><label className="label">Nome da loja</label><input className="input" value={storeName} onChange={e=>setStoreName(e.target.value)} /></div>
-          <div className="input-wrap"><label className="label">Especialidade</label>
-            <select className="input" value={specialty} onChange={e=>setSpecialty(e.target.value)}>
-              <option value="">Selecione</option>
-              {["Motor","Suspensão","Freios","Elétrica","Câmbio","Carroceria","Acessórios","Multimarcas"].map(s=>(
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
-          <button className="btn btn-primary" onClick={saveStore} disabled={saving}>{saving?"Salvando...":"Salvar"}</button>
-        </div>
-      )}
-
-      {!isPremium && (
-        <div className="card" style={{borderColor:"rgba(245,158,11,.3)",background:"rgba(245,158,11,.06)",marginBottom:14}}>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <span style={{fontSize:24}}>⭐</span>
-            <div style={{flex:1}}>
-              <div style={{fontWeight:700,marginBottom:2}}>Upgrade para Premium</div>
-              <div style={{fontSize:13,color:"var(--muted)"}}>Anúncios ilimitados, destaque no marketplace e widget WhatsApp</div>
-            </div>
-          </div>
-          <button className="btn btn-primary" style={{background:"linear-gradient(135deg,#f59e0b,#d97706)",marginTop:12}} onClick={() => setScreen("plans")}>
-            Ver Planos
-          </button>
-        </div>
-      )}
-
-      <div style={{fontSize:11,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".8px",marginBottom:10}}>
-        Minhas peças anunciadas
-      </div>
-      {loading ? <div className="spinner" /> : parts.length === 0 ? (
-        <div className="empty">
-          <div className="empty-icon">📦</div>
-          <div className="empty-title">Nenhuma peça anunciada</div>
-          <div className="empty-sub">Clique em "Anunciar" para cadastrar sua primeira peça</div>
-        </div>
-      ) : parts.map((item, i) => (
-        <div key={item.id} className={`part-card anim-fade-up delay-${Math.min(i+1,6)}`}>
-          <div className="part-icon">
-            {item.images?.[0] ? <img src={item.images[0]} alt="" style={{width:60,height:60,objectFit:"cover",borderRadius:"var(--radius-sm)"}} /> : "🔧"}
-          </div>
-          <div className="part-info">
-            <div className="part-name">{item.part?.name || item.name}</div>
-            <div className="part-oem">OEM: {item.part?.oemNumber || item.oemNumber}</div>
-            <div className="part-meta">
-              <span className={`badge badge-${item.condition==="new"?"new":"used"}`}>{item.condition==="new"?"Nova":"Usada"}</span>
-              <span style={{fontSize:11,color:"var(--muted)"}}>{item.stock} un</span>
-            </div>
-          </div>
-          <div className="part-price-col">
-            <div className="part-price">{fmt(item.price)}</div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ─── PLANS ────────────────────────────────────────────────────────────────────
-function PlansScreen({ user, setScreen, onUpdateUser }) {
-  const isSeller = user?.type === "seller";
-  const isPremium = user?.plan === "premium";
-  const [show, toastEl] = useToast();
-
-  const buyerFree = ["Busca por placa ilimitada","Acesso ao marketplace","Carrinho e checkout","Histórico de pedidos","Avaliação de vendedores"];
-  const buyerPremium = ["Tudo do plano Free","Alertas de preço e disponibilidade","Lojas favoritas","Ofertas exclusivas para Premium","Suporte prioritário","Histórico detalhado de compras"];
-  const sellerFree = ["Até 20 peças ativas","Dashboard básico","Perfil de loja","Receber pedidos","Avaliações dos compradores"];
-  const sellerPremium = ["Peças ilimitadas","Analytics avançado (visitas, conversão)","Destaque no topo do marketplace","Widget de WhatsApp no perfil","URL personalizada compartilhável","Badge de vendedor Premium","Suporte prioritário"];
-
-  const freeFeatures = isSeller ? sellerFree : buyerFree;
-  const premiumFeatures = isSeller ? sellerPremium : buyerPremium;
-
-  const handleUpgrade = async () => {
-    show("Redirecionando para pagamento... 🚀", "success");
-    // Em produção: integrar com Mercado Pago Subscriptions
-    setTimeout(async () => {
-      try {
-        await initFirebase();
-        await firebaseFirestore.setDoc(
-          firebaseFirestore.doc(firebaseFirestore.instance, "users", user.uid),
-          { plan: "premium" }, { merge: true }
-        );
-        onUpdateUser?.({ ...user, plan: "premium" });
-        show("Plano Premium ativado! ⭐", "success");
-      } catch { show("Erro ao processar. Tente novamente."); }
-    }, 1500);
-  };
-
-  return (
-    <div className="screen screen-inner">
-      {toastEl}
-      <div className="page-title">Planos e Assinatura</div>
-      <div className="page-sub">Escolha o melhor plano para você</div>
-
-      {isPremium && (
-        <div className="card" style={{borderColor:"rgba(245,158,11,.4)",background:"rgba(245,158,11,.07)",marginBottom:16,textAlign:"center"}}>
-          <div style={{fontSize:32,marginBottom:6}}>⭐</div>
-          <div style={{fontWeight:800,fontSize:18,marginBottom:4}}>Você já é Premium!</div>
-          <div style={{fontSize:13,color:"var(--muted)"}}>Aproveite todos os recursos exclusivos.</div>
-        </div>
-      )}
-
-      <div className="plan-card" style={{marginBottom:12}}>
-        <div className="plan-name">🆓 Plano Free</div>
-        <div className="plan-price">R$ 0</div>
-        <div className="plan-price-sub">sem mensalidade</div>
-        {freeFeatures.map((f, i) => (
-          <div key={i} className="plan-feature"><span className="plan-check">✓</span>{f}</div>
-        ))}
-        {!isPremium && <div style={{marginTop:14,padding:"10px 14px",background:"var(--card2)",borderRadius:"var(--radius-sm)",fontSize:13,color:"var(--muted)",textAlign:"center"}}>✅ Seu plano atual</div>}
-      </div>
-
-      <div className="plan-card featured" style={{marginBottom:20}}>
-        <div className="plan-badge-top">Recomendado</div>
-        <div className="plan-name" style={{color:"#f59e0b"}}>⭐ Plano Premium</div>
-        <div className="plan-price">{isSeller ? "R$ 49" : "R$ 9"}</div>
-        <div className="plan-price-sub">por mês · cancele quando quiser</div>
-        {premiumFeatures.map((f, i) => (
-          <div key={i} className="plan-feature"><span className="plan-check">✓</span>{f}</div>
-        ))}
-        {!isPremium ? (
-          <button className="btn" style={{background:"linear-gradient(135deg,#f59e0b,#d97706)",color:"#fff",marginTop:16}} onClick={handleUpgrade}>
-            ⭐ Assinar Premium
-          </button>
-        ) : (
-          <div style={{marginTop:14,padding:"10px 14px",background:"rgba(245,158,11,.1)",border:"1px solid rgba(245,158,11,.3)",borderRadius:"var(--radius-sm)",fontSize:13,color:"#f59e0b",textAlign:"center"}}>✅ Seu plano atual</div>
-        )}
-      </div>
-
-      <div className="card" style={{textAlign:"center"}}>
-        <div style={{fontSize:13,color:"var(--muted)",lineHeight:1.7}}>
-          💳 Pagamento seguro via Mercado Pago<br/>
-          🔄 Cancele a qualquer momento<br/>
-          🔒 Sem fidelidade nem multa
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── APP ROOT ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [user, setUser] = useState(null);
@@ -2445,10 +1910,8 @@ export default function App() {
   const [screen, setScreen] = useState("home");
   const [vehicleData, setVehicleData] = useState(null);
   const [selectedPart, setSelectedPart] = useState(null);
-  const [selectedStore, setSelectedStore] = useState(null);
   const [cart, setCart] = useState([]);
   const [cartLoading, setCartLoading] = useState(false);
-  const [premiumGate, setPremiumGate] = useState(null); // { title, desc, features }
   const [show, toastEl] = useToast();
 
   // Inject styles
@@ -2470,16 +1933,12 @@ export default function App() {
     } else if (path.includes("/pagamento/pendente") || params.get("collection_status") === "pending") {
       setScreen("payment_pending");
     }
-    // Detectar deep link de loja
-    if (params.get("store")) {
-      setSelectedStore({ id: params.get("store") });
-      setScreen("store_profile");
-    }
   }, []);
 
   // Firebase auth listener
   useEffect(() => {
     initFirebase().then(async () => {
+      // Verificar se voltou de um redirect do Google
       try {
         const result = await firebaseAuth.getRedirectResult(firebaseAuth.instance);
         if (result?.user) {
@@ -2491,7 +1950,6 @@ export default function App() {
               email: result.user.email,
               photo: result.user.photoURL || null,
               type: "buyer",
-              plan: "free",
               sellerVerified: false,
               active: true,
               createdAt: new Date().toISOString(),
@@ -2527,12 +1985,6 @@ export default function App() {
   const removeFromCart = (id) => setCart(c => c.filter(i => i.id !== id));
   const clearCart = () => setCart([]);
 
-  // Premium gate helper
-  const requirePremium = (config, action) => {
-    if (user?.plan === "premium") { action(); return; }
-    setPremiumGate(config);
-  };
-
   const checkout = async () => {
     if (cart.length === 0) return;
     setCartLoading(true);
@@ -2555,7 +2007,9 @@ export default function App() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Erro ao criar pagamento");
+      // Salva carrinho para limpar após retorno do MP
       sessionStorage.setItem("pendingOrderId", data.data.orderId);
+      // Redireciona para o Checkout Pro do Mercado Pago
       window.location.href = data.data.initPoint;
     } catch (e) {
       show(e.message || "Erro ao ir para pagamento");
@@ -2580,10 +2034,17 @@ export default function App() {
   if (!user) return <AuthScreen onLogin={u => { setUser(u); setScreen("home"); }} />;
 
   const isSeller = user?.type === "seller";
-  const isPremium = user?.plan === "premium";
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
 
-  // ── Tela de detalhe de peça (sobrepõe tudo, sem nav) ──
+  const navItems = [
+    { key: "home", label: "Início", icon: <Icons.Home /> },
+    { key: "search", label: "Buscar", icon: <Icons.Search /> },
+    { key: "marketplace", label: "Loja", icon: <Icons.Shop /> },
+    { key: "orders", label: "Pedidos", icon: <Icons.Orders /> },
+    ...(isSeller ? [{ key: "sell", label: "Vender", icon: <Icons.Sell /> }, { key: "profile", label: "Perfil", icon: <Icons.User /> }] : [{ key: "profile", label: "Perfil", icon: <Icons.User /> }]),
+  ];
+
+  // Se há peça selecionada, mostra detalhe
   if (selectedPart) return (
     <div className="app">
       {toastEl}
@@ -2602,117 +2063,49 @@ export default function App() {
       <PartDetailScreen
         part={selectedPart}
         onBack={() => setSelectedPart(null)}
-        onAddToCart={(item) => { addToCart(item); show("Adicionado ao carrinho! 🛒", "success"); }}
+        onAddToCart={(item) => { addToCart(item); }}
       />
     </div>
   );
-
-  // ── Tela de perfil de loja (sobrepõe tudo, sem nav) ──
-  if (screen === "store_profile" && selectedStore) return (
-    <div className="app">
-      {toastEl}
-      <StoreProfileScreen
-        store={selectedStore}
-        onBack={() => { setSelectedStore(null); setScreen("lojas"); }}
-        onSelectPart={p => { setSelectedPart(p); }}
-        user={user}
-      />
-    </div>
-  );
-
-  // ── Navegação principal ──
-  const navItems = isSeller
-    ? [
-        { key: "home",       label: "Início",   icon: <Icons.Home /> },
-        { key: "sell",       label: "Dashboard", icon: <Icons.Sell /> },
-        { key: "minha_loja", label: "Minha Loja", icon: <Icons.Store /> },
-        { key: "orders",     label: "Pedidos",   icon: <Icons.Orders /> },
-        { key: "profile",    label: "Perfil",    icon: <Icons.User /> },
-      ]
-    : [
-        { key: "home",       label: "Início",   icon: <Icons.Home /> },
-        { key: "search",     label: "Buscar",   icon: <Icons.Search /> },
-        { key: "lojas",      label: "Lojas",    icon: <Icons.Store /> },
-        { key: "orders",     label: "Pedidos",  icon: <Icons.Orders /> },
-        { key: "profile",    label: "Perfil",   icon: <Icons.User /> },
-      ];
-
-  const activeNavKey = () => {
-    if (screen === "results") return "search";
-    if (screen === "cart" || screen === "marketplace") return "lojas";
-    if (screen === "sell_form") return "sell";
-    if (screen === "plans") return "profile";
-    return screen;
-  };
 
   return (
     <div className="app">
       {toastEl}
-
-      {/* Premium Gate Modal */}
-      {premiumGate && (
-        <PremiumGate
-          {...premiumGate}
-          onClose={() => setPremiumGate(null)}
-          onUpgrade={() => { setPremiumGate(null); setScreen("plans"); }}
-        />
-      )}
-
-      {/* Topbar */}
       <div className="topbar">
-        <div className="topbar-logo" style={{display:"flex",alignItems:"center",gap:8}} onClick={() => setScreen("home")}>
+        <div className="topbar-logo" style={{display:"flex",alignItems:"center",gap:8}}>
           <div style={{width:30,height:30,background:"var(--primary)",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center"}}>
             <span style={{color:"#fff",fontSize:16,fontWeight:800}}>A</span>
           </div>
           <span style={{fontSize:18,fontWeight:800,color:"var(--text)",letterSpacing:.5}}>AutoStore</span>
-          {isPremium && <span style={{fontSize:10,background:"linear-gradient(135deg,#f59e0b,#d97706)",color:"#000",padding:"2px 7px",borderRadius:99,fontWeight:700,letterSpacing:.5}}>PREMIUM</span>}
         </div>
         <div className="topbar-right">
-          {!isSeller && (
-            <button className="cart-btn" onClick={() => setScreen("cart")}>
-              <Icons.Cart />
-              {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
-            </button>
-          )}
+          <button className="cart-btn" onClick={() => setScreen("cart")}>
+            <Icons.Cart />
+            Carrinho
+            {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
+          </button>
         </div>
       </div>
 
-      {/* Screens */}
-      {screen === "home" && <HomeScreen user={user} setScreen={setScreen} cartCount={cartCount} setSelectedStore={s => { setSelectedStore(s); setScreen("store_profile"); }} />}
+      {screen === "home" && <HomeScreen user={user} setScreen={setScreen} cartCount={cartCount} />}
       {screen === "search" && <SearchScreen onVehicleFound={d => { setVehicleData(d); setScreen("results"); }} />}
       {screen === "results" && vehicleData && <ResultsScreen vehicleData={vehicleData} onBack={() => setScreen("search")} onSelectPart={setSelectedPart} />}
       {screen === "marketplace" && <MarketplaceScreen onSelectPart={setSelectedPart} />}
-      {screen === "lojas" && <CentralLojasScreen setScreen={setScreen} setSelectedStore={setSelectedStore} user={user} />}
       {screen === "cart" && <CartScreen cart={cart} onUpdateQty={updateQty} onRemove={removeFromCart} onCheckout={checkout} loading={cartLoading} />}
       {screen === "orders" && <OrdersScreen user={user} />}
       {screen === "sell" && isSeller && <SellScreen user={user} setScreen={setScreen} />}
       {screen === "sell_form" && isSeller && <SellFormScreen user={user} setScreen={setScreen} />}
-      {screen === "minha_loja" && isSeller && <MinhaLojaScreen user={user} setScreen={setScreen} />}
-      {screen === "plans" && <PlansScreen user={user} setScreen={setScreen} onUpdateUser={u => setUser(u)} />}
       {screen === "support" && <SupportScreen user={user} />}
-      {screen === "profile" && (
-        <ProfileScreen
-          user={user}
-          onLogout={() => setUser(null)}
-          onUpdateUser={setUser}
-          setScreen={setScreen}
-          requirePremium={requirePremium}
-        />
-      )}
+      {screen === "profile" && <ProfileScreen user={user} onLogout={() => setUser(null)} onUpdateUser={setUser} />}
       {screen === "payment_success" && <PaymentSuccessScreen setScreen={setScreen} clearCart={clearCart} />}
       {screen === "payment_failure" && <PaymentFailureScreen setScreen={setScreen} />}
       {screen === "payment_pending" && <PaymentPendingScreen setScreen={setScreen} />}
 
-      {/* Bottom Nav */}
       <nav className="bottom-nav">
         {navItems.map(item => (
-          <button
-            key={item.key}
-            className={`nav-item ${activeNavKey() === item.key ? "active" : ""}`}
-            onClick={() => setScreen(item.key)}
-          >
-            {item.icon}
-            {item.label}
+          <button key={item.key} className={`nav-item ${(screen === item.key || (screen === "results" && item.key === "search") || (screen === "cart" && item.key === "marketplace") || (screen === "sell_form" && item.key === "sell")) ? "active" : ""}`}
+            onClick={() => setScreen(item.key)}>
+            {item.icon}{item.label}
           </button>
         ))}
       </nav>

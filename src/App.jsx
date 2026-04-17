@@ -656,10 +656,14 @@ function AuthScreen({ onLogin }) {
 }
 
 // ─── HOME ─────────────────────────────────────────────────────────────────────
-function HomeScreen({ user, setScreen, cartCount }) {
+function HomeScreen({ user, setScreen, cartCount, setSelectedStore, setSelectedPart }) {
   const isSeller = user?.type === "seller";
   const firstName = user?.name?.split(" ")[0] || "Usuário";
   const [activeCat, setActiveCat] = useState(0);
+  const [featuredStores, setFeaturedStores] = useState([]);
+  const [popularProducts, setPopularProducts] = useState([]);
+  const [loadingStores, setLoadingStores] = useState(true);
+  const [loadingProducts, setLoadingProducts] = useState(true);
 
   const categories = [
     { icon: "🔩", label: "Suspensão" },
@@ -670,19 +674,48 @@ function HomeScreen({ user, setScreen, cartCount }) {
     { icon: "💡", label: "Elétrica" },
   ];
 
-  const stores = [
-    { name: "Auto Center Turbo", tag: "Freios e Suspensão", img: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=80&auto=format&fit=crop" },
-    { name: "Oficina do Som", tag: "Som Automotivo", img: "https://images.unsplash.com/photo-1600669989861-40a4db65a88a?w=400&q=80&auto=format&fit=crop" },
-    { name: "Prime Auto Parts", tag: "Peças OEM Originais", img: "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=400&q=80&auto=format&fit=crop" },
-    { name: "CRS Suspensão", tag: "Amortecedores", img: "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=400&q=80&auto=format&fit=crop" },
-  ];
+  // Busca lojas e produtos reais da API
+  useEffect(() => {
+    fetch(`${API}/marketplaceParts?limit=40`)
+      .then(r => r.json())
+      .then(d => {
+        const parts = d.data || [];
 
-  const popularProducts = [
-    { name: "Disco de Freio", price: "R$ 189,90", img: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&q=70&auto=format&fit=crop" },
-    { name: "Kit Embreagem", price: "R$ 399,90", img: "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=300&q=70&auto=format&fit=crop" },
-    { name: "Amortecedor", price: "R$ 299,90", img: "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=300&q=70&auto=format&fit=crop" },
-    { name: "Filtro de Óleo", price: "R$ 49,90", img: "https://images.unsplash.com/photo-1600669989861-40a4db65a88a?w=300&q=70&auto=format&fit=crop" },
-  ];
+        // ── Lojas em destaque (até 4, priorizando premium) ──────────────────
+        const storeMap = {};
+        parts.forEach(p => {
+          const sid = p.sellerId || p.seller?.uid;
+          const sname = p.seller?.name || "Loja";
+          if (sid && !storeMap[sid]) {
+            storeMap[sid] = {
+              id: sid,
+              name: sname,
+              photo: p.seller?.photo || null,
+              plan: p.seller?.plan || "free",
+              specialty: p.seller?.specialty || "Peças Automotivas",
+              rating: p.seller?.ratingAvg || 0,
+              ratingCount: p.seller?.ratingCount || 0,
+              partsCount: 0,
+            };
+          }
+          if (sid) storeMap[sid].partsCount++;
+        });
+        const storeList = Object.values(storeMap);
+        storeList.sort((a, b) =>
+          (b.plan === "premium" ? 1 : 0) - (a.plan === "premium" ? 1 : 0) ||
+          b.ratingCount - a.ratingCount
+        );
+        setFeaturedStores(storeList.slice(0, 4));
+        setLoadingStores(false);
+
+        // ── Produtos populares (até 6, os mais recentes) ────────────────────
+        setPopularProducts(parts.slice(0, 6));
+        setLoadingProducts(false);
+      })
+      .catch(() => { setLoadingStores(false); setLoadingProducts(false); });
+  }, []);
+
+  const fmt = (v) => Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   return (
     <div className="screen" style={{paddingBottom:80}}>
@@ -750,10 +783,27 @@ function HomeScreen({ user, setScreen, cartCount }) {
       </div>
 
       <div className="stores-grid">
-        {stores.map((store, i) => (
-          <div key={i} className={`store-card anim-fade-up delay-${i+1}`}
-            onClick={() => setScreen("lojas")}>
-            <img src={store.img} alt={store.name} className="store-card-img" />
+        {loadingStores ? (
+          [1,2,3,4].map(i => (
+            <div key={i} className="store-card" style={{pointerEvents:"none"}}>
+              <div className="shimmer store-card-img" />
+              <div className="store-card-body">
+                <div className="shimmer" style={{height:13,width:"70%",marginBottom:10}} />
+                <div className="shimmer" style={{height:28,width:"80%",borderRadius:8}} />
+              </div>
+            </div>
+          ))
+        ) : featuredStores.length === 0 ? (
+          <div style={{gridColumn:"1/-1",padding:"20px 0",textAlign:"center",color:"var(--muted)",fontSize:13}}>
+            Nenhuma loja disponível ainda
+          </div>
+        ) : featuredStores.map((store, i) => (
+          <div key={store.id} className={`store-card anim-fade-up delay-${i+1}`}
+            onClick={() => { setSelectedStore && setSelectedStore(store); setScreen("store_profile"); }}>
+            {store.photo
+              ? <img src={store.photo} alt={store.name} className="store-card-img" />
+              : <div className="store-card-img" style={{display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#1e3a5f,#0f172a)",fontSize:36}}>🏪</div>
+            }
             <div className="store-card-body">
               <div className="store-card-name">{store.name}</div>
               <div className="store-card-btn">
@@ -761,7 +811,7 @@ function HomeScreen({ user, setScreen, cartCount }) {
                   style={{padding:"6px 14px",fontSize:12,borderRadius:8}}>
                   Ver Loja
                 </button>
-                <span style={{color:"var(--muted)",fontSize:18}}>›</span>
+                {store.plan === "premium" && <span style={{fontSize:11,color:"#f59e0b",fontWeight:700}}>⭐</span>}
               </div>
             </div>
           </div>
@@ -775,16 +825,37 @@ function HomeScreen({ user, setScreen, cartCount }) {
       </div>
 
       <div className="products-scroll">
-        {popularProducts.map((prod, i) => (
-          <div key={i} className={`product-mini anim-fade-up delay-${i+1}`}
-            onClick={() => setScreen("marketplace")}>
-            <img src={prod.img} alt={prod.name} className="product-mini-img" />
-            <div className="product-mini-body">
-              <div className="product-mini-name">{prod.name}</div>
-              <div className="product-mini-price">{prod.price}</div>
+        {loadingProducts ? (
+          [1,2,3].map(i => (
+            <div key={i} className="product-mini" style={{pointerEvents:"none"}}>
+              <div className="shimmer product-mini-img" />
+              <div className="product-mini-body">
+                <div className="shimmer" style={{height:12,width:"80%",marginBottom:6}} />
+                <div className="shimmer" style={{height:14,width:"50%"}} />
+              </div>
             </div>
+          ))
+        ) : popularProducts.length === 0 ? (
+          <div style={{padding:"20px 16px",color:"var(--muted)",fontSize:13}}>
+            Nenhum produto disponível ainda
           </div>
-        ))}
+        ) : popularProducts.map((prod, i) => {
+          const img = prod.part?.images?.[0] || prod.images?.[0] || null;
+          const name = prod.part?.name || prod.name || "Peça Automotiva";
+          return (
+            <div key={prod.id || i} className={`product-mini anim-fade-up delay-${i+1}`}
+              onClick={() => { setSelectedPart && setSelectedPart(prod); }}>
+              {img
+                ? <img src={img} alt={name} className="product-mini-img" />
+                : <div className="product-mini-img" style={{display:"flex",alignItems:"center",justifyContent:"center",background:"var(--card2)",fontSize:28}}>🔧</div>
+              }
+              <div className="product-mini-body">
+                <div className="product-mini-name">{name}</div>
+                <div className="product-mini-price">{fmt(prod.price)}</div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* ── AÇÕES RÁPIDAS (só vendedor) ── */}
@@ -2678,7 +2749,7 @@ export default function App() {
       </div>
 
       {/* Screens */}
-      {screen === "home" && <HomeScreen user={user} setScreen={setScreen} cartCount={cartCount} setSelectedStore={s => { setSelectedStore(s); setScreen("store_profile"); }} />}
+      {screen === "home" && <HomeScreen user={user} setScreen={setScreen} cartCount={cartCount} setSelectedStore={s => { setSelectedStore(s); setScreen("store_profile"); }} setSelectedPart={setSelectedPart} />}
       {screen === "search" && <SearchScreen onVehicleFound={d => { setVehicleData(d); setScreen("results"); }} />}
       {screen === "results" && vehicleData && <ResultsScreen vehicleData={vehicleData} onBack={() => setScreen("search")} onSelectPart={setSelectedPart} />}
       {screen === "marketplace" && <MarketplaceScreen onSelectPart={setSelectedPart} />}

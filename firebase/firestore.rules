@@ -1,0 +1,149 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Funções auxiliares ──────────────────────────────────────────────────
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.isAdmin == true;
+    }
+
+    function isValidString(field, minLen, maxLen) {
+      return field is string && field.size() >= minLen && field.size() <= maxLen;
+    }
+
+    // ─── Usuários ────────────────────────────────────────────────────────────
+    match /users/{uid} {
+      // Leitura: o próprio usuário ou admin
+      allow read: if isOwner(uid) || isAdmin();
+      // Criação: o próprio usuário (via create-profile)
+      allow create: if isOwner(uid)
+        && isValidString(request.resource.data.email, 3, 200)
+        && request.resource.data.isAdmin == false
+        && request.resource.data.isPremium == false;
+      // Atualização: o próprio usuário (exceto campos protegidos) ou admin
+      allow update: if (isOwner(uid)
+          && !("isAdmin" in request.resource.data.diff(resource.data).affectedKeys())
+          && !("isPremium" in request.resource.data.diff(resource.data).affectedKeys())
+          && !("sellerVerified" in request.resource.data.diff(resource.data).affectedKeys()))
+        || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ─── Veículos ────────────────────────────────────────────────────────────
+    match /vehicles/{vehicleId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /models/{modelId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /brands/{brandId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ─── Peças mestras (catálogo) ─────────────────────────────────────────────
+    match /masterParts/{partId} {
+      allow read: if true;
+      // Somente admin ou sistema (backend) cria/edita masterParts
+      allow write: if isAdmin();
+    }
+
+    // ─── Compatibilidades ────────────────────────────────────────────────────
+    match /compatibilities/{compatId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ─── Marketplace ─────────────────────────────────────────────────────────
+    match /marketplaceParts/{partId} {
+      // Leitura pública: apenas anúncios aprovados e ativos
+      allow read: if resource.data.active == true
+        && resource.data.moderationStatus == "approved";
+      // Admin pode ler qualquer anúncio
+      allow read: if isAdmin();
+      // Vendedor autenticado pode ver seus próprios anúncios (qualquer status)
+      allow read: if isAuthenticated()
+        && resource.data.sellerId == request.auth.uid;
+
+      // Criação: qualquer usuário autenticado (moderação controla visibilidade)
+      allow create: if isAuthenticated()
+        && request.resource.data.sellerId == request.auth.uid
+        && request.resource.data.price > 0
+        && request.resource.data.stock >= 0
+        && request.resource.data.moderationStatus == "pending"
+        && request.resource.data.active == false;
+
+      // Atualização: vendedor pode editar campos não-moderação; admin edita tudo
+      allow update: if isAdmin()
+        || (isAuthenticated()
+          && resource.data.sellerId == request.auth.uid
+          && !("moderationStatus" in request.resource.data.diff(resource.data).affectedKeys())
+          && !("active" in request.resource.data.diff(resource.data).affectedKeys())
+          && !("approvedBy" in request.resource.data.diff(resource.data).affectedKeys()));
+
+      allow delete: if isAdmin()
+        || (isAuthenticated() && resource.data.sellerId == request.auth.uid);
+    }
+
+    // ─── Pedidos ─────────────────────────────────────────────────────────────
+    match /orders/{orderId} {
+      // Comprador vê seus próprios pedidos
+      allow read: if isAuthenticated()
+        && (resource.data.buyerId == request.auth.uid || isAdmin());
+      // Somente o backend (admin SDK) cria pedidos
+      allow create: if isAuthenticated();
+      // Atualização de status: comprador ou admin
+      allow update: if isAuthenticated()
+        && (resource.data.buyerId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // ─── Avaliações ──────────────────────────────────────────────────────────
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated()
+        && request.resource.data.buyerId == request.auth.uid
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5;
+      allow update, delete: if isAdmin();
+    }
+
+    // ─── Notificações ────────────────────────────────────────────────────────
+    match /notifications/{notifId} {
+      allow read: if isAuthenticated()
+        && resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["read"]);
+      allow create, delete: if isAdmin();
+    }
+
+    // ─── Cache de chassi ─────────────────────────────────────────────────────
+    match /chassiCache/{vin} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ─── Bloqueio geral: nega tudo que não foi explicitamente permitido ───────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

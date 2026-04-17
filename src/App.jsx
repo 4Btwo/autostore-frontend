@@ -2282,26 +2282,36 @@ function StoreProfileScreen({ store, onBack, onSelectPart, user }) {
 }
 
 // ─── MINHA LOJA (seller view) ─────────────────────────────────────────────────
-function MinhaLojaScreen({ user, setScreen }) {
+function MinhaLojaScreen({ user, setScreen, onUpdateUser }) {
   const [parts, setParts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [storeName, setStoreName] = useState(user?.name || "");
   const [specialty, setSpecialty] = useState(user?.specialty || "");
+  const [storePhoto, setStorePhoto] = useState(user?.photo || null);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [editingPart, setEditingPart] = useState(null); // part being edited
+  const [editForm, setEditForm] = useState({});
+  const [savingPart, setSavingPart] = useState(false);
   const [show, toastEl] = useToast();
-  const isPremium = user?.plan === "premium";
+  const photoInputRef = useRef();
+  const isPremium = user?.plan === "premium" || user?.isPremium === true;
   const rating = user?.ratingAvg || 0;
   const ratingCount = user?.ratingCount || 0;
 
-  useEffect(() => {
+  const loadParts = () => {
+    setLoading(true);
     fetch(`${API}/marketplaceParts?sellerId=${user?.uid}`)
       .then(r => r.json())
       .then(d => setParts(d.data || []))
       .catch(() => [])
       .finally(() => setLoading(false));
-  }, []);
+  };
 
+  useEffect(() => { loadParts(); }, []);
+
+  // ── Salvar nome + especialidade ─────────────────────────────────────────────
   const saveStore = async () => {
     setSaving(true);
     try {
@@ -2310,10 +2320,75 @@ function MinhaLojaScreen({ user, setScreen }) {
         firebaseFirestore.doc(firebaseFirestore.instance, "users", user.uid),
         { name: storeName, specialty }, { merge: true }
       );
+      onUpdateUser?.({ ...user, name: storeName, specialty });
       show("Loja atualizada! ✅", "success");
       setEditing(false);
-    } catch { show("Erro ao salvar"); }
+    } catch { show("Erro ao salvar", "error"); }
     finally { setSaving(false); }
+  };
+
+  // ── Upload foto da loja via API ──────────────────────────────────────────────
+  const uploadStorePhoto = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoUploading(true);
+    try {
+      const { getAuth } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js");
+      const token = await getAuth().currentUser?.getIdToken();
+      const fd = new FormData();
+      fd.append("photo", file);
+      const res = await fetch(`${API}/users/photo`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      const data = await res.json();
+      if (data.success) {
+        const url = data.data.photo;
+        setStorePhoto(url);
+        onUpdateUser?.({ ...user, photo: url });
+        show("Foto atualizada! ✅", "success");
+      } else { show("Erro ao enviar foto", "error"); }
+    } catch { show("Erro ao enviar foto", "error"); }
+    finally { setPhotoUploading(false); }
+  };
+
+  // ── Editar peça (preço, estoque, status ativo) ───────────────────────────────
+  const startEditPart = (item) => {
+    setEditingPart(item.id);
+    setEditForm({ price: item.price, stock: item.stock, active: item.active !== false });
+  };
+
+  const savePart = async () => {
+    if (!editingPart) return;
+    setSavingPart(true);
+    try {
+      await initFirebase();
+      await firebaseFirestore.updateDoc(
+        firebaseFirestore.doc(firebaseFirestore.instance, "marketplaceParts", editingPart),
+        { price: Number(editForm.price), stock: Number(editForm.stock), active: editForm.active }
+      );
+      setParts(prev => prev.map(p => p.id === editingPart
+        ? { ...p, price: Number(editForm.price), stock: Number(editForm.stock), active: editForm.active }
+        : p
+      ));
+      show("Peça atualizada! ✅", "success");
+      setEditingPart(null);
+    } catch { show("Erro ao salvar peça", "error"); }
+    finally { setSavingPart(false); }
+  };
+
+  const deletePart = async (partId) => {
+    if (!window.confirm("Remover este anúncio?")) return;
+    try {
+      await initFirebase();
+      await firebaseFirestore.updateDoc(
+        firebaseFirestore.doc(firebaseFirestore.instance, "marketplaceParts", partId),
+        { active: false }
+      );
+      setParts(prev => prev.filter(p => p.id !== partId));
+      show("Anúncio removido", "success");
+    } catch { show("Erro ao remover", "error"); }
   };
 
   const shareLink = () => {
@@ -2332,8 +2407,20 @@ function MinhaLojaScreen({ user, setScreen }) {
   return (
     <div className="screen screen-inner">
       {toastEl}
+      <input ref={photoInputRef} type="file" accept="image/*" style={{display:"none"}} onChange={uploadStorePhoto} />
+
+      {/* ── BANNER + FOTO ── */}
       <div className="minha-loja-header">
-        <div className="minha-loja-banner">🏪</div>
+        <div className="minha-loja-banner" style={{position:"relative",cursor:"pointer"}}
+          onClick={() => photoInputRef.current?.click()}>
+          {storePhoto
+            ? <img src={storePhoto} alt="Foto da loja" style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:"var(--radius) var(--radius) 0 0"}} />
+            : <span style={{fontSize:56}}>🏪</span>
+          }
+          <div style={{position:"absolute",bottom:8,right:10,background:"rgba(0,0,0,.55)",borderRadius:20,padding:"4px 10px",fontSize:11,color:"#fff",display:"flex",alignItems:"center",gap:4}}>
+            {photoUploading ? "⏳ Enviando..." : "📷 Alterar foto"}
+          </div>
+        </div>
         <div className="minha-loja-info">
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
             <div>
@@ -2359,15 +2446,29 @@ function MinhaLojaScreen({ user, setScreen }) {
         </div>
       </div>
 
+      {/* ── BOTÕES DE AÇÃO ── */}
       <div className="btn-row" style={{marginBottom:14}}>
         <button className="btn btn-secondary btn-sm" style={{flex:1}} onClick={shareLink}>🔗 Compartilhar</button>
         <button className="btn btn-secondary btn-sm" style={{flex:1}} onClick={() => setEditing(!editing)}>{editing?"Cancelar":"✏️ Editar loja"}</button>
         <button className="btn btn-primary btn-sm" style={{flex:1}} onClick={() => setScreen("sell_form")}>➕ Anunciar</button>
       </div>
 
+      {/* ── FORMULÁRIO DE EDIÇÃO DA LOJA ── */}
       {editing && (
         <div className="card" style={{marginBottom:14}}>
           <div style={{fontSize:11,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".6px",marginBottom:12}}>Editar Loja</div>
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14,padding:"10px 12px",background:"var(--card2)",borderRadius:"var(--radius-sm)",cursor:"pointer"}}
+            onClick={() => photoInputRef.current?.click()}>
+            {storePhoto
+              ? <img src={storePhoto} style={{width:48,height:48,borderRadius:"50%",objectFit:"cover"}} alt="" />
+              : <div style={{width:48,height:48,borderRadius:"50%",background:"var(--border)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>🏪</div>
+            }
+            <div>
+              <div style={{fontWeight:600,fontSize:13}}>{photoUploading ? "Enviando..." : "Alterar foto da loja"}</div>
+              <div style={{fontSize:11,color:"var(--muted)"}}>JPG ou PNG, até 5MB</div>
+            </div>
+            <span style={{marginLeft:"auto",fontSize:18,color:"var(--muted)"}}>›</span>
+          </div>
           <div className="input-wrap"><label className="label">Nome da loja</label><input className="input" value={storeName} onChange={e=>setStoreName(e.target.value)} /></div>
           <div className="input-wrap"><label className="label">Especialidade</label>
             <select className="input" value={specialty} onChange={e=>setSpecialty(e.target.value)}>
@@ -2377,10 +2478,11 @@ function MinhaLojaScreen({ user, setScreen }) {
               ))}
             </select>
           </div>
-          <button className="btn btn-primary" onClick={saveStore} disabled={saving}>{saving?"Salvando...":"Salvar"}</button>
+          <button className="btn btn-primary" onClick={saveStore} disabled={saving}>{saving?"Salvando...":"Salvar alterações"}</button>
         </div>
       )}
 
+      {/* ── BANNER PREMIUM ── */}
       {!isPremium && (
         <div className="card" style={{borderColor:"rgba(245,158,11,.3)",background:"rgba(245,158,11,.06)",marginBottom:14}}>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -2396,6 +2498,7 @@ function MinhaLojaScreen({ user, setScreen }) {
         </div>
       )}
 
+      {/* ── LISTA DE PEÇAS ── */}
       <div style={{fontSize:11,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".8px",marginBottom:10}}>
         Minhas peças anunciadas
       </div>
@@ -2406,21 +2509,57 @@ function MinhaLojaScreen({ user, setScreen }) {
           <div className="empty-sub">Clique em "Anunciar" para cadastrar sua primeira peça</div>
         </div>
       ) : parts.map((item, i) => (
-        <div key={item.id} className={`part-card anim-fade-up delay-${Math.min(i+1,6)}`}>
-          <div className="part-icon">
-            {item.images?.[0] ? <img src={item.images[0]} alt="" style={{width:60,height:60,objectFit:"cover",borderRadius:"var(--radius-sm)"}} /> : "🔧"}
-          </div>
-          <div className="part-info">
-            <div className="part-name">{item.part?.name || item.name}</div>
-            <div className="part-oem">OEM: {item.part?.oemNumber || item.oemNumber}</div>
-            <div className="part-meta">
-              <span className={`badge badge-${item.condition==="new"?"new":"used"}`}>{item.condition==="new"?"Nova":"Usada"}</span>
-              <span style={{fontSize:11,color:"var(--muted)"}}>{item.stock} un</span>
+        <div key={item.id} style={{marginBottom:10}}>
+          <div className={`part-card anim-fade-up delay-${Math.min(i+1,6)}`}
+            style={{cursor:"default",borderBottomLeftRadius: editingPart===item.id ? 0 : undefined, borderBottomRightRadius: editingPart===item.id ? 0 : undefined}}>
+            <div className="part-icon">
+              {item.images?.[0] ? <img src={item.images[0]} alt="" style={{width:60,height:60,objectFit:"cover",borderRadius:"var(--radius-sm)"}} /> : "🔧"}
+            </div>
+            <div className="part-info">
+              <div className="part-name">{item.part?.name || item.name}</div>
+              <div className="part-oem">OEM: {item.part?.oemNumber || item.oemNumber}</div>
+              <div className="part-meta">
+                <span className={`badge badge-${item.condition==="new"?"new":"used"}`}>{item.condition==="new"?"Nova":"Usada"}</span>
+                <span style={{fontSize:11,color:"var(--muted)"}}>{item.stock} un</span>
+                {item.moderationStatus === "pending" && <span style={{fontSize:10,background:"rgba(245,158,11,.15)",color:"#f59e0b",padding:"2px 6px",borderRadius:99}}>⏳ Em análise</span>}
+                {item.active === false && <span style={{fontSize:10,background:"rgba(239,68,68,.12)",color:"#ef4444",padding:"2px 6px",borderRadius:99}}>❌ Inativo</span>}
+              </div>
+            </div>
+            <div className="part-price-col">
+              <div className="part-price">{fmt(item.price)}</div>
+              <div style={{display:"flex",gap:4,marginTop:4}}>
+                <button style={{fontSize:11,padding:"3px 8px",borderRadius:6,border:"1px solid var(--border)",background:"var(--card2)",cursor:"pointer",color:"var(--text)"}}
+                  onClick={() => editingPart === item.id ? setEditingPart(null) : startEditPart(item)}>
+                  {editingPart === item.id ? "✕" : "✏️"}
+                </button>
+                <button style={{fontSize:11,padding:"3px 8px",borderRadius:6,border:"1px solid rgba(239,68,68,.3)",background:"rgba(239,68,68,.08)",cursor:"pointer",color:"#ef4444"}}
+                  onClick={() => deletePart(item.id)}>🗑️</button>
+              </div>
             </div>
           </div>
-          <div className="part-price-col">
-            <div className="part-price">{fmt(item.price)}</div>
-          </div>
+          {/* ── EDIÇÃO INLINE DA PEÇA ── */}
+          {editingPart === item.id && (
+            <div style={{background:"var(--card2)",border:"1px solid var(--border)",borderTop:"none",borderRadius:"0 0 var(--radius) var(--radius)",padding:"12px 14px",display:"flex",gap:10,flexWrap:"wrap",alignItems:"flex-end"}}>
+              <div style={{flex:"1 1 80px"}}>
+                <label style={{fontSize:11,color:"var(--muted)",display:"block",marginBottom:4}}>Preço (R$)</label>
+                <input className="input" style={{padding:"6px 10px",fontSize:13}} type="number" value={editForm.price} onChange={e=>setEditForm(f=>({...f,price:e.target.value}))} />
+              </div>
+              <div style={{flex:"1 1 70px"}}>
+                <label style={{fontSize:11,color:"var(--muted)",display:"block",marginBottom:4}}>Estoque</label>
+                <input className="input" style={{padding:"6px 10px",fontSize:13}} type="number" value={editForm.stock} onChange={e=>setEditForm(f=>({...f,stock:e.target.value}))} />
+              </div>
+              <div style={{flex:"1 1 90px"}}>
+                <label style={{fontSize:11,color:"var(--muted)",display:"block",marginBottom:4}}>Status</label>
+                <select className="input" style={{padding:"6px 10px",fontSize:13}} value={editForm.active ? "active" : "inactive"} onChange={e=>setEditForm(f=>({...f,active:e.target.value==="active"}))}>
+                  <option value="active">Ativo</option>
+                  <option value="inactive">Inativo</option>
+                </select>
+              </div>
+              <button className="btn btn-primary btn-sm" style={{height:36,alignSelf:"flex-end"}} onClick={savePart} disabled={savingPart}>
+                {savingPart ? "..." : "Salvar"}
+              </button>
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -2758,7 +2897,7 @@ export default function App() {
       {screen === "orders" && <OrdersScreen user={user} />}
       {screen === "sell" && isSeller && <SellScreen user={user} setScreen={setScreen} />}
       {screen === "sell_form" && isSeller && <SellFormScreen user={user} setScreen={setScreen} />}
-      {screen === "minha_loja" && isSeller && <MinhaLojaScreen user={user} setScreen={setScreen} />}
+      {screen === "minha_loja" && isSeller && <MinhaLojaScreen user={user} setScreen={setScreen} onUpdateUser={u => setUser(u)} />}
       {screen === "plans" && <PlansScreen user={user} setScreen={setScreen} onUpdateUser={u => setUser(u)} />}
       {screen === "support" && <SupportScreen user={user} />}
       {screen === "profile" && (

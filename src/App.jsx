@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyAdQ5bcdZyFyQsn5-amZ0M7qkEx-w21rJI",
-  authDomain: "autostore-830b4.firebaseapp.com",
-  projectId: "autostore-830b4",
-  storageBucket: "autostore-830b4.firebasestorage.app",
-  messagingSenderId: "369837251334",
-  appId: "1:369837251334:web:4fe82db7fea45ed0689c87",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -347,7 +347,32 @@ const styles = `
   .page-title{font-size:24px;font-weight:800;color:var(--text);margin-bottom:4px}
   .page-sub{font-size:14px;color:var(--muted);margin-bottom:20px}
   .divider{height:1px;background:var(--border);margin:14px 0}
-`;
+
+  /* ── SELL FORM ── */
+  .photo-upload-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+  .photo-slot{aspect-ratio:1;border-radius:var(--radius-sm);background:var(--card2);border:1px dashed var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;position:relative;transition:border-color .2s}
+  .photo-slot:hover{border-color:var(--primary)}
+  .photo-slot img{width:100%;height:100%;object-fit:cover}
+  .photo-add-icon{font-size:24px;opacity:.5}
+  .remove-photo{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);border:none;color:#fff;border-radius:50%;width:20px;height:20px;font-size:14px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .seller-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+  .seller-form-grid .span2{grid-column:1/-1}
+  .filter-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px}
+  .toggle-link{font-size:13px;color:var(--muted);cursor:pointer;margin-top:8px;text-align:center}
+  .toggle-link span{color:var(--primary3);font-weight:600;text-decoration:underline}
+  .back-btn{display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:0;margin-bottom:18px;font-family:'Inter',sans-serif}
+  .back-btn:hover{color:var(--text)}
+  .result-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .result-count{font-size:13px;color:var(--muted);background:var(--card2);padding:4px 12px;border-radius:99px;border:1px solid var(--border)}
+  .filter-section{margin-bottom:12px}
+  .avatar-edit-btn{position:absolute;bottom:0;right:0;width:24px;height:24px;background:var(--primary);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid var(--bg2)}
+  .profile-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+  .stat-box{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;text-align:center}
+  .stat-num{font-size:22px;font-weight:800;color:var(--text)}
+  .stat-lbl{font-size:11px;color:var(--muted);margin-top:2px}
+  .seller-rating{display:flex;align-items:center;gap:6px}
+  .chat-msg-user{font-size:11px;color:var(--primary3);font-weight:600;margin-bottom:2px}
+`
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 const fmt = n => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -673,7 +698,7 @@ function HomeScreen({ user, setScreen, cartCount }) {
             <span className="section-hdr-title">Ações Rápidas</span>
           </div>
           <div style={{padding:"0 16px 16px",display:"flex",flexDirection:"column",gap:10}}>
-            <button className="dash-action-btn primary" onClick={() => setScreen("sell")}>
+            <button className="dash-action-btn primary" onClick={() => setScreen("sell_form")}>
               <span style={{fontSize:20}}>📦</span>
               <span style={{fontWeight:700,color:"#fff",fontSize:14}}>+ Novo Produto</span>
             </button>
@@ -822,7 +847,7 @@ function SellDashboard({ user, setScreen }) {
       {/* Quick Actions */}
       <div style={{padding:"16px"}}>
         <div style={{fontSize:15,fontWeight:700,color:"var(--text)",marginBottom:12}}>Ações Rápidas</div>
-        <button className="dash-action-btn primary" onClick={() => setScreen("sell")}>
+        <button className="dash-action-btn primary" onClick={() => setScreen("sell_form")}>
           <span style={{fontSize:20}}>📦</span>
           <span style={{fontWeight:700,color:"#fff",fontSize:14}}>+ Novo Produto</span>
         </button>
@@ -1417,7 +1442,7 @@ function SellScreen({ user, setScreen }) {
 }
 
 // ─── SELL ─────────────────────────────────────────────────────────────────────
-function SellFormScreen({ user }) {
+function SellFormScreen({ user, setScreen }) {
   const [step, setStep] = useState(1);
   const [oem, setOem] = useState("");
   const [masterPart, setMasterPart] = useState(null);
@@ -1502,6 +1527,7 @@ function SellFormScreen({ user }) {
       show("Peça anunciada com sucesso! 🎉", "success");
       setStep(1); setOem(""); setMasterPart(null); setPhotos([]);
       setForm({ price: "", stock: "", condition: "new", warrantyMonths: "0", description: "" });
+      setTimeout(() => setScreen?.("sell"), 1800);
     } catch { show("Erro ao anunciar peça"); }
     finally { setLoading(false); }
   };
@@ -2068,6 +2094,7 @@ export default function App() {
       {screen === "cart" && <CartScreen cart={cart} onUpdateQty={updateQty} onRemove={removeFromCart} onCheckout={checkout} loading={cartLoading} />}
       {screen === "orders" && <OrdersScreen user={user} />}
       {screen === "sell" && isSeller && <SellScreen user={user} setScreen={setScreen} />}
+      {screen === "sell_form" && isSeller && <SellFormScreen user={user} setScreen={setScreen} />}
       {screen === "support" && <SupportScreen user={user} />}
       {screen === "profile" && <ProfileScreen user={user} onLogout={() => setUser(null)} onUpdateUser={setUser} />}
       {screen === "payment_success" && <PaymentSuccessScreen setScreen={setScreen} clearCart={clearCart} />}
@@ -2076,7 +2103,7 @@ export default function App() {
 
       <nav className="bottom-nav">
         {navItems.map(item => (
-          <button key={item.key} className={`nav-item ${(screen === item.key || (screen === "results" && item.key === "search") || (screen === "cart" && item.key === "marketplace")) ? "active" : ""}`}
+          <button key={item.key} className={`nav-item ${(screen === item.key || (screen === "results" && item.key === "search") || (screen === "cart" && item.key === "marketplace") || (screen === "sell_form" && item.key === "sell")) ? "active" : ""}`}
             onClick={() => setScreen(item.key)}>
             {item.icon}{item.label}
           </button>

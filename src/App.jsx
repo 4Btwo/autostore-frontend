@@ -891,38 +891,129 @@ function HomeScreen({ user, setScreen, cartCount, setSelectedStore, setSelectedP
 // ─── SELL DASHBOARD ────────────────────────────────────────────────────────────
 function SellDashboard({ user, setScreen }) {
   const firstName = user?.name?.split(" ")[0] || "Usuário";
+  const [orders, setOrders] = useState([]);
+  const [parts, setParts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        await initFirebase();
+        const token = await firebaseAuth.instance.currentUser?.getIdToken();
+        const headers = { Authorization: `Bearer ${token}` };
+
+        const [ordersRes, partsRes] = await Promise.all([
+          fetch(`${API}/orders/seller`, { headers }),
+          fetch(`${API}/marketplaceParts?sellerId=${user.uid}`),
+        ]);
+
+        const ordersData = await ordersRes.json();
+        const partsData = await partsRes.json();
+
+        setOrders(ordersData.data || []);
+        setParts(partsData.data || []);
+      } catch (e) {
+        console.error("Dashboard load error:", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  // ── Cálculos reais ──────────────────────────────────────────────────────────
+  const now = new Date();
+  const todayStr = now.toDateString();
+
+  const todayOrders = orders.filter(o => {
+    const d = o.createdAt ? new Date(o.createdAt) : null;
+    return d && d.toDateString() === todayStr;
+  });
+  const todaySales = todayOrders.reduce((s, o) => s + (o.myTotal || 0), 0);
+  const pendingCount = orders.filter(o => o.status === "pending" || o.status === "awaiting_payment").length;
+
+  // Vendas dos últimos 7 dias agrupadas por dia
+  const last7 = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - (6 - i));
+    return d;
+  });
+  const salesByDay = last7.map(day => {
+    const dayStr = day.toDateString();
+    return orders
+      .filter(o => o.createdAt && new Date(o.createdAt).toDateString() === dayStr)
+      .reduce((s, o) => s + (o.myTotal || 0), 0);
+  });
+
+  // Crescimento: compara esta semana com semana anterior
+  const thisWeekSales = salesByDay.reduce((s, v) => s + v, 0);
+  const prevWeekOrders = orders.filter(o => {
+    if (!o.createdAt) return false;
+    const d = new Date(o.createdAt);
+    const daysAgo = (now - d) / (1000 * 60 * 60 * 24);
+    return daysAgo >= 7 && daysAgo < 14;
+  });
+  const prevWeekSales = prevWeekOrders.reduce((s, o) => s + (o.myTotal || 0), 0);
+  const growth = prevWeekSales > 0 ? ((thisWeekSales - prevWeekSales) / prevWeekSales) * 100 : 0;
+
+  // Conversão: pedidos com status delivered / total de pedidos
+  const deliveredCount = orders.filter(o => o.status === "delivered").length;
+  const convRate = orders.length > 0 ? (deliveredCount / orders.length) * 100 : 0;
 
   const metrics = [
-    { icon: "💰", label: "Vendas Hoje", value: "R$ 1.250", sub: "+12% hoje", subColor: "var(--accent)", bg: "rgba(34,197,94,.12)" },
-    { icon: "📦", label: "Pedidos Hoje", value: "18", sub: "8 pendentes", subColor: "var(--warning)", bg: "rgba(245,158,11,.12)" },
-    { icon: "📈", label: "Crescimento", value: "+12,5%", sub: "↑ esta semana", subColor: "var(--accent)", bg: "rgba(34,197,94,.12)" },
-    { icon: "%", label: "Conversão", value: "5,4%", sub: "↑ +0.8%", subColor: "var(--accent)", bg: "rgba(59,130,246,.12)" },
+    {
+      icon: "💰", label: "Vendas Hoje",
+      value: fmt(todaySales),
+      sub: todayOrders.length > 0 ? `${todayOrders.length} pedido${todayOrders.length > 1 ? "s" : ""}` : "Nenhum hoje",
+      subColor: todayOrders.length > 0 ? "var(--accent)" : "var(--muted)",
+      bg: "rgba(34,197,94,.12)",
+    },
+    {
+      icon: "📦", label: "Pedidos Hoje",
+      value: String(todayOrders.length),
+      sub: pendingCount > 0 ? `${pendingCount} pendente${pendingCount > 1 ? "s" : ""}` : "Todos ok",
+      subColor: pendingCount > 0 ? "var(--warning)" : "var(--accent)",
+      bg: "rgba(245,158,11,.12)",
+    },
+    {
+      icon: "📈", label: "Esta Semana",
+      value: fmt(thisWeekSales),
+      sub: growth !== 0 ? `${growth >= 0 ? "↑" : "↓"} ${Math.abs(growth).toFixed(1)}% vs anterior` : "Sem histórico",
+      subColor: growth >= 0 ? "var(--accent)" : "var(--danger)",
+      bg: "rgba(34,197,94,.12)",
+    },
+    {
+      icon: "%", label: "Conversão",
+      value: `${convRate.toFixed(1)}%`,
+      sub: `${deliveredCount} entregue${deliveredCount !== 1 ? "s" : ""} / ${orders.length} total`,
+      subColor: "var(--primary3)",
+      bg: "rgba(59,130,246,.12)",
+    },
   ];
 
-  const recentOrders = [
-    { id: "#1024", client: "João Silva", status: "pending", value: "R$ 320,00" },
-    { id: "#1023", client: "Ana Souza", status: "shipped", value: "R$ 150,00" },
-    { id: "#1022", client: "Marco Lima", status: "delivered", value: "R$ 210,00" },
-  ];
+  const recentOrders = orders.slice(0, 5);
 
-  const statusLabel = { pending: "Pendente", shipped: "Enviado", delivered: "Concluído", cancelled: "Cancelado" };
+  const statusLabel = { pending: "Pendente", awaiting_payment: "Aguardando", confirmed: "Confirmado", shipped: "Enviado", delivered: "Concluído", cancelled: "Cancelado" };
   const statusColor = {
-    pending: { bg: "rgba(245,158,11,.15)", color: "#FCD34D" },
-    shipped: { bg: "rgba(59,130,246,.15)", color: "#93C5FD" },
-    delivered: { bg: "rgba(34,197,94,.15)", color: "#4ADE80" },
-    cancelled: { bg: "rgba(239,68,68,.15)", color: "#FCA5A5" },
+    pending:          { bg: "rgba(245,158,11,.15)", color: "#FCD34D" },
+    awaiting_payment: { bg: "rgba(100,116,139,.15)", color: "#94A3B8" },
+    confirmed:        { bg: "rgba(59,130,246,.15)",  color: "#93C5FD" },
+    shipped:          { bg: "rgba(59,130,246,.15)",  color: "#93C5FD" },
+    delivered:        { bg: "rgba(34,197,94,.15)",   color: "#4ADE80" },
+    cancelled:        { bg: "rgba(239,68,68,.15)",   color: "#FCA5A5" },
   };
 
-  // Mini chart SVG
-  const chartPoints = [20, 45, 35, 60, 80, 65, 90, 75, 95];
+  // Chart SVG com dados reais
+  const chartPoints = salesByDay;
   const w = 300, h = 80, pad = 10;
-  const maxV = Math.max(...chartPoints);
+  const maxV = Math.max(...chartPoints, 1);
   const pts = chartPoints.map((v, i) => {
     const x = pad + (i / (chartPoints.length - 1)) * (w - 2 * pad);
     const y = h - pad - (v / maxV) * (h - 2 * pad);
     return `${x},${y}`;
   }).join(" ");
   const areaPoints = `${pad},${h - pad} ${pts} ${w - pad},${h - pad}`;
+  const dayLabels = last7.map(d => ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"][d.getDay()]);
 
   return (
     <div className="screen" style={{paddingBottom:80}}>
@@ -934,93 +1025,143 @@ function SellDashboard({ user, setScreen }) {
         </div>
       </div>
 
-      {/* Metric Cards */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,padding:"0 16px 16px"}}>
-        {metrics.map((m, i) => (
-          <div key={i} className={`dash-metric anim-fade-up delay-${i+1}`}>
-            <div className="dash-metric-icon" style={{background:m.bg}}>
-              <span style={{fontSize:16}}>{m.icon}</span>
-            </div>
-            <div className="dash-metric-label">{m.label}</div>
-            <div className="dash-metric-value" style={{fontSize:20}}>{m.value}</div>
-            <div className="dash-metric-sub" style={{color:m.subColor}}>
-              <span>{m.sub}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Chart */}
-      <div style={{padding:"0 16px 16px"}}>
-        <div className="dash-chart">
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-            <div className="dash-chart-title">Vendas da Semana</div>
-            <span style={{fontSize:11,background:"var(--card2)",border:"1px solid var(--border)",
-              padding:"4px 10px",borderRadius:99,color:"var(--muted)",fontWeight:500}}>Últimos 7 dias</span>
-          </div>
-          <svg width="100%" viewBox={`0 0 ${w} ${h}`} style={{overflow:"visible"}}>
-            <defs>
-              <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#3B82F6" stopOpacity=".35"/>
-                <stop offset="100%" stopColor="#3B82F6" stopOpacity=".02"/>
-              </linearGradient>
-            </defs>
-            <polygon points={areaPoints} fill="url(#chartGrad)"/>
-            <polyline points={pts} fill="none" stroke="#3B82F6" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round"/>
-            {chartPoints.map((v, i) => {
-              const x = pad + (i / (chartPoints.length - 1)) * (w - 2 * pad);
-              const y = h - pad - (v / maxV) * (h - 2 * pad);
-              return <circle key={i} cx={x} cy={y} r="3.5" fill="#3B82F6" stroke="#0F172A" strokeWidth="2"/>;
-            })}
-          </svg>
-          <div style={{display:"flex",justifyContent:"space-between",marginTop:8}}>
-            {["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"].map((d,i) => (
-              <span key={i} style={{fontSize:10,color:"var(--muted)",fontWeight:500}}>{d}</span>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Orders */}
-      <div style={{padding:"0 16px"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          <div style={{fontSize:15,fontWeight:700,color:"var(--text)"}}>Últimos Pedidos</div>
-          <button onClick={() => setScreen("orders")}
-            style={{fontSize:12,color:"var(--primary3)",background:"var(--card2)",
-              border:"1px solid var(--border)",padding:"5px 12px",borderRadius:99,
-              cursor:"pointer",fontWeight:600}}>
-            Ver Todos →
-          </button>
-        </div>
-        <div style={{background:"var(--card)",border:"1px solid var(--border)",borderRadius:"var(--radius)"}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr auto",
-            padding:"10px 14px",borderBottom:"1px solid var(--border)"}}>
-            {["Pedido","Cliente","Status","Valor"].map(h => (
-              <span key={h} style={{fontSize:11,color:"var(--muted)",fontWeight:600,
-                textTransform:"uppercase",letterSpacing:".5px"}}>{h}</span>
-            ))}
-          </div>
-          {recentOrders.map((order, i) => {
-            const sc = statusColor[order.status] || statusColor.pending;
-            return (
-              <div key={i} style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr auto",
-                padding:"14px",borderBottom: i < recentOrders.length-1 ? "1px solid var(--border)" : "none",
-                alignItems:"center"}}>
-                <span style={{fontWeight:700,color:"var(--text)",fontSize:14}}>{order.id}</span>
-                <span style={{fontSize:14,color:"var(--text2)"}}>{order.client}</span>
-                <span style={{fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:99,
-                  background:sc.bg,color:sc.color,display:"inline-block",width:"fit-content"}}>
-                  {statusLabel[order.status]}
-                </span>
-                <span style={{fontSize:13,fontWeight:700,color:"var(--text)",textAlign:"right"}}>{order.value}</span>
+      {loading ? (
+        <div className="spinner" />
+      ) : (
+        <>
+          {/* Metric Cards */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,padding:"0 16px 16px"}}>
+            {metrics.map((m, i) => (
+              <div key={i} className={`dash-metric anim-fade-up delay-${i+1}`}>
+                <div className="dash-metric-icon" style={{background:m.bg}}>
+                  <span style={{fontSize:16}}>{m.icon}</span>
+                </div>
+                <div className="dash-metric-label">{m.label}</div>
+                <div className="dash-metric-value" style={{fontSize:18}}>{m.value}</div>
+                <div className="dash-metric-sub" style={{color:m.subColor}}>
+                  <span style={{fontSize:11}}>{m.sub}</span>
+                </div>
               </div>
-            );
-          })}
-        </div>
-      </div>
+            ))}
+          </div>
+
+          {/* Chart */}
+          <div style={{padding:"0 16px 16px"}}>
+            <div className="dash-chart">
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+                <div className="dash-chart-title">Vendas da Semana</div>
+                <span style={{fontSize:11,background:"var(--card2)",border:"1px solid var(--border)",
+                  padding:"4px 10px",borderRadius:99,color:"var(--muted)",fontWeight:500}}>Últimos 7 dias</span>
+              </div>
+              {thisWeekSales === 0 ? (
+                <div style={{textAlign:"center",padding:"20px 0",color:"var(--muted)",fontSize:13}}>
+                  📊 Nenhuma venda nos últimos 7 dias
+                </div>
+              ) : (
+                <svg width="100%" viewBox={`0 0 ${w} ${h}`} style={{overflow:"visible"}}>
+                  <defs>
+                    <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#3B82F6" stopOpacity=".35"/>
+                      <stop offset="100%" stopColor="#3B82F6" stopOpacity=".02"/>
+                    </linearGradient>
+                  </defs>
+                  <polygon points={areaPoints} fill="url(#chartGrad)"/>
+                  <polyline points={pts} fill="none" stroke="#3B82F6" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round"/>
+                  {chartPoints.map((v, i) => {
+                    const x = pad + (i / (chartPoints.length - 1)) * (w - 2 * pad);
+                    const y = h - pad - (v / maxV) * (h - 2 * pad);
+                    return (
+                      <g key={i}>
+                        <circle cx={x} cy={y} r="4" fill="#3B82F6" stroke="#0F172A" strokeWidth="2"/>
+                        {v > 0 && <text x={x} y={y - 8} textAnchor="middle" fontSize="8" fill="#64748B">
+                          {fmt(v).replace("R$","").trim()}
+                        </text>}
+                      </g>
+                    );
+                  })}
+                </svg>
+              )}
+              <div style={{display:"flex",justifyContent:"space-between",marginTop:8}}>
+                {dayLabels.map((d, i) => (
+                  <span key={i} style={{fontSize:10,color:"var(--muted)",fontWeight:500}}>{d}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Orders */}
+          <div style={{padding:"0 16px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+              <div style={{fontSize:15,fontWeight:700,color:"var(--text)"}}>Últimos Pedidos</div>
+              <button onClick={() => setScreen("orders")}
+                style={{fontSize:12,color:"var(--primary3)",background:"var(--card2)",
+                  border:"1px solid var(--border)",padding:"5px 12px",borderRadius:99,
+                  cursor:"pointer",fontWeight:600}}>
+                Ver Todos →
+              </button>
+            </div>
+            {recentOrders.length === 0 ? (
+              <div className="empty" style={{padding:"30px 0"}}>
+                <div className="empty-icon">📦</div>
+                <div className="empty-title">Nenhum pedido ainda</div>
+                <div className="empty-sub">Seus pedidos aparecerão aqui</div>
+              </div>
+            ) : (
+              <div style={{background:"var(--card)",border:"1px solid var(--border)",borderRadius:"var(--radius)"}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr auto",
+                  padding:"10px 14px",borderBottom:"1px solid var(--border)"}}>
+                  {["Pedido","Cliente","Status","Valor"].map(h => (
+                    <span key={h} style={{fontSize:11,color:"var(--muted)",fontWeight:600,
+                      textTransform:"uppercase",letterSpacing:".5px"}}>{h}</span>
+                  ))}
+                </div>
+                {recentOrders.map((order, i) => {
+                  const sc = statusColor[order.status] || statusColor.pending;
+                  const shortId = `#${order.id.slice(-5).toUpperCase()}`;
+                  return (
+                    <div key={order.id} style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr auto",
+                      padding:"14px",borderBottom: i < recentOrders.length-1 ? "1px solid var(--border)" : "none",
+                      alignItems:"center"}}>
+                      <span style={{fontWeight:700,color:"var(--text)",fontSize:13}}>{shortId}</span>
+                      <span style={{fontSize:13,color:"var(--text2)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                        {order.buyerName || "Comprador"}
+                      </span>
+                      <span style={{fontSize:11,fontWeight:700,padding:"3px 8px",borderRadius:99,
+                        background:sc.bg,color:sc.color,display:"inline-block",width:"fit-content"}}>
+                        {statusLabel[order.status] || order.status}
+                      </span>
+                      <span style={{fontSize:13,fontWeight:700,color:"var(--text)",textAlign:"right"}}>
+                        {fmt(order.myTotal || order.total)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Inventory summary */}
+          <div style={{padding:"16px"}}>
+            <div style={{fontSize:15,fontWeight:700,color:"var(--text)",marginBottom:10}}>Estoque</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+              {[
+                { label:"Anúncios", value: parts.length, icon:"📋" },
+                { label:"Em estoque", value: parts.reduce((s,p)=>s+(p.stock||0),0), icon:"📦" },
+                { label:"Sem estoque", value: parts.filter(p=>(p.stock||0)===0).length, icon:"⚠️" },
+              ].map((s, i) => (
+                <div key={i} style={{background:"var(--card)",border:"1px solid var(--border)",borderRadius:"var(--radius-sm)",padding:"12px",textAlign:"center"}}>
+                  <div style={{fontSize:20,marginBottom:4}}>{s.icon}</div>
+                  <div style={{fontSize:22,fontWeight:800,color:"var(--text)"}}>{s.value}</div>
+                  <div style={{fontSize:11,color:"var(--muted)",marginTop:2}}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Quick Actions */}
-      <div style={{padding:"16px"}}>
+      <div style={{padding:"0 16px 16px"}}>
         <div style={{fontSize:15,fontWeight:700,color:"var(--text)",marginBottom:12}}>Ações Rápidas</div>
         <button className="dash-action-btn primary" onClick={() => setScreen("sell_form")}>
           <span style={{fontSize:20}}>📦</span>

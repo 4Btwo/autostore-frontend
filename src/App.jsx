@@ -656,7 +656,7 @@ function AuthScreen({ onLogin }) {
 }
 
 // ─── HOME ─────────────────────────────────────────────────────────────────────
-function HomeScreen({ user, setScreen, cartCount, setSelectedStore, setSelectedPart }) {
+function HomeScreen({ user, setScreen, cartCount, setSelectedStore, setSelectedPart, userCoords }) {
   const isSeller = user?.type === "seller";
   const firstName = user?.name?.split(" ")[0] || "Usuário";
   const [activeCat, setActiveCat] = useState(0);
@@ -681,7 +681,7 @@ function HomeScreen({ user, setScreen, cartCount, setSelectedStore, setSelectedP
       .then(d => {
         const parts = d.data || [];
 
-        // ── Lojas em destaque (até 4, priorizando premium) ──────────────────
+        // ── Lojas em destaque (até 4, premium+próximas primeiro) ────────────
         const storeMap = {};
         parts.forEach(p => {
           const sid = p.sellerId || p.seller?.uid;
@@ -695,16 +695,24 @@ function HomeScreen({ user, setScreen, cartCount, setSelectedStore, setSelectedP
               specialty: p.seller?.specialty || "Peças Automotivas",
               rating: p.seller?.ratingAvg || 0,
               ratingCount: p.seller?.ratingCount || 0,
+              coords: p.seller?.coords || null,
               partsCount: 0,
             };
           }
           if (sid) storeMap[sid].partsCount++;
         });
         const storeList = Object.values(storeMap);
-        storeList.sort((a, b) =>
-          (b.plan === "premium" ? 1 : 0) - (a.plan === "premium" ? 1 : 0) ||
-          b.ratingCount - a.ratingCount
-        );
+        storeList.sort((a, b) => {
+          const aPremium = a.plan === "premium" ? 1 : 0;
+          const bPremium = b.plan === "premium" ? 1 : 0;
+          if (aPremium !== bPremium) return bPremium - aPremium;
+          if (userCoords) {
+            const distA = haversineKm(userCoords, a.coords);
+            const distB = haversineKm(userCoords, b.coords);
+            if (distA !== distB) return distA - distB;
+          }
+          return b.rating - a.rating || b.ratingCount - a.ratingCount;
+        });
         setFeaturedStores(storeList.slice(0, 4));
         setLoadingStores(false);
 
@@ -1810,8 +1818,10 @@ function ProfileScreen({ user, onLogout, onUpdateUser, setScreen, requirePremium
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(pos => {
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         setLocation(`${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
-      });
+        localStorage.setItem("user_coords", JSON.stringify(coords));
+      }, () => {}, { maximumAge: 30 * 60 * 1000, timeout: 8000 });
     }
   }, []);
 
@@ -1932,7 +1942,7 @@ function ProfileScreen({ user, onLogout, onUpdateUser, setScreen, requirePremium
         {location && <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}><span style={{ color: "var(--muted)" }}>Localização</span><span style={{fontFamily:"monospace",fontSize:11}}>{location}</span></div>}
       </div>
 
-      <button className="btn btn-danger" onClick={logout}><Icons.Logout /> Sair da conta</button>
+      <button className="btn btn-secondary" style={{fontSize:12,padding:"8px 16px",color:"var(--danger)",borderColor:"rgba(239,68,68,.3)",marginBottom:8}} onClick={logout}><Icons.Logout /> Sair da conta</button>
 
       <div style={{height:8}} />
       <button className="dash-action-btn" onClick={() => setScreen("plans")} style={{marginBottom:0}}>
@@ -2096,7 +2106,18 @@ function SupportScreen({ user }) {
 }
 
 // ─── CENTRAL DE LOJAS ─────────────────────────────────────────────────────────
-function CentralLojasScreen({ setScreen, setSelectedStore, user }) {
+// Helper: Haversine distance in km between two lat/lng points
+function haversineKm(a, b) {
+  if (!a || !b) return Infinity;
+  const R = 6371;
+  const dLat = (b.lat - a.lat) * Math.PI / 180;
+  const dLng = (b.lng - a.lng) * Math.PI / 180;
+  const h = Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.asin(Math.sqrt(h));
+}
+
+// ─── CENTRAL DE LOJAS ─────────────────────────────────────────────────────────
+function CentralLojasScreen({ setScreen, setSelectedStore, user, userCoords }) {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -2108,35 +2129,50 @@ function CentralLojasScreen({ setScreen, setSelectedStore, user }) {
   const specialties = ["Todas","Motor","Suspensão","Freios","Elétrica","Câmbio","Carroceria","Acessórios"];
 
   useEffect(() => {
-    fetch(`${API}/marketplaceParts`)
+    fetch(`${API}/marketplaceParts?limit=100`)
       .then(r => r.json())
       .then(d => {
         const parts = d.data || [];
         const storeMap = {};
         parts.forEach(p => {
           const sid = p.sellerId || p.seller?.uid;
-          const sname = p.seller?.name || "Loja";
-          if (sid && !storeMap[sid]) {
+          if (!sid) return;
+          if (!storeMap[sid]) {
             storeMap[sid] = {
               id: sid,
-              name: sname,
+              name: p.seller?.name || "Loja",
               photo: p.seller?.photo || null,
               plan: p.seller?.plan || "free",
               rating: p.seller?.ratingAvg || 0,
               ratingCount: p.seller?.ratingCount || 0,
               specialty: p.seller?.specialty || "Peças Automotivas",
               partsCount: 0,
+              coords: p.seller?.coords || null,
             };
           }
-          if (sid) storeMap[sid].partsCount++;
+          storeMap[sid].partsCount++;
         });
+
         const list = Object.values(storeMap);
-        list.sort((a,b) => (b.plan==="premium"?1:0)-(a.plan==="premium"?1:0) || b.ratingCount-a.ratingCount);
+
+        // Ordenação: premium próximo → premium longe → free próximo → free longe
+        list.sort((a, b) => {
+          const aPremium = a.plan === "premium" ? 1 : 0;
+          const bPremium = b.plan === "premium" ? 1 : 0;
+          if (aPremium !== bPremium) return bPremium - aPremium;
+          if (userCoords) {
+            const distA = haversineKm(userCoords, a.coords);
+            const distB = haversineKm(userCoords, b.coords);
+            if (distA !== distB) return distA - distB;
+          }
+          return b.rating - a.rating || b.ratingCount - a.ratingCount;
+        });
+
         setStores(list);
       })
       .catch(() => setStores([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [userCoords]);
 
   const toggleFav = (id) => {
     const next = favorites.includes(id) ? favorites.filter(f=>f!==id) : [...favorites, id];
@@ -2166,7 +2202,20 @@ function CentralLojasScreen({ setScreen, setSelectedStore, user }) {
         ))}
       </div>
 
-      {loading ? <div className="spinner" /> : filtered.length === 0 ? (
+      {loading ? (
+        <div>{[1,2,3].map(i => (
+          <div key={i} className="store-hub-card" style={{pointerEvents:"none",marginBottom:10}}>
+            <div className="shimmer" style={{width:"100%",height:88}} />
+            <div className="store-hub-body">
+              <div style={{display:"flex",gap:10,marginBottom:10}}>
+                <div className="shimmer" style={{width:40,height:40,borderRadius:10}} />
+                <div style={{flex:1}}><div className="shimmer" style={{height:14,width:"60%",marginBottom:6}} /><div className="shimmer" style={{height:11,width:"40%"}} /></div>
+              </div>
+              <div className="shimmer" style={{height:32,borderRadius:8}} />
+            </div>
+          </div>
+        ))}</div>
+      ) : filtered.length === 0 ? (
         <div className="empty"><div className="empty-icon">🏪</div><div className="empty-title">Nenhuma loja encontrada</div></div>
       ) : filtered.map((store, i) => (
         <div key={store.id} className={`store-hub-card anim-fade-up delay-${Math.min(i+1,6)}`}>
@@ -2188,7 +2237,13 @@ function CentralLojasScreen({ setScreen, setSelectedStore, user }) {
               </button>
             </div>
             <div className="store-hub-stats">
-              {store.ratingCount > 0 && <span>⭐ {store.rating.toFixed(1)} ({store.ratingCount})</span>}
+              {store.ratingCount > 0 && (
+                <span style={{display:"flex",alignItems:"center",gap:3}}>
+                  <Stars value={Math.round(store.rating)} size="sm" />
+                  <span style={{fontWeight:700,fontSize:12}}>{store.rating.toFixed(1)}</span>
+                  <span style={{color:"var(--muted)",fontSize:11}}>({store.ratingCount})</span>
+                </span>
+              )}
               <span>📦 {store.partsCount} {store.partsCount===1?"peça":"peças"}</span>
             </div>
             <div style={{display:"flex",gap:8,marginTop:12}}>
@@ -2209,17 +2264,25 @@ function CentralLojasScreen({ setScreen, setSelectedStore, user }) {
 // ─── STORE PROFILE (buyer view) ───────────────────────────────────────────────
 function StoreProfileScreen({ store, onBack, onSelectPart, user }) {
   const [parts, setParts] = useState([]);
+  const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showAllReviews, setShowAllReviews] = useState(false);
   const isPremiumSeller = store?.plan === "premium";
 
   useEffect(() => {
     if (!store?.id) return;
-    fetch(`${API}/marketplaceParts?sellerId=${store.id}`)
-      .then(r => r.json())
-      .then(d => setParts(d.data || []))
-      .catch(() => [])
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetch(`${API}/marketplaceParts?sellerId=${store.id}`).then(r => r.json()),
+      fetch(`${API}/reviews/seller/${store.id}`).then(r => r.json()),
+    ]).then(([partsRes, reviewsRes]) => {
+      setParts(partsRes.data || []);
+      setReviews(reviewsRes.data || []);
+    }).catch(() => {}).finally(() => setLoading(false));
   }, [store?.id]);
+
+  const visibleReviews = showAllReviews ? reviews : reviews.slice(0, 3);
+  const avgRating = store?.rating || (reviews.length > 0 ? reviews.reduce((s,r)=>s+r.rating,0)/reviews.length : 0);
+  const ratingCount = store?.ratingCount || reviews.length;
 
   return (
     <div className="screen store-profile-wrap">
@@ -2228,10 +2291,12 @@ function StoreProfileScreen({ store, onBack, onSelectPart, user }) {
           <Icons.Back /> Lojas
         </button>
       </div>
-      <div style={{height:160,background:"linear-gradient(135deg,#1e3a5f,#0f172a)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:64}}>
+
+      <div style={{height:160,background:"linear-gradient(135deg,#1e3a5f,#0f172a)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:64,overflow:"hidden"}}>
         {store?.photo ? <img src={store.photo} style={{width:"100%",height:"100%",objectFit:"cover"}} alt="" /> : "🏪"}
       </div>
-      <div style={{padding:"0 18px 20px"}}>
+
+      <div style={{padding:"0 18px 80px"}}>
         <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginTop:14,marginBottom:8}}>
           <div>
             <div style={{fontSize:22,fontWeight:800,marginBottom:2}}>{store?.name}</div>
@@ -2239,20 +2304,25 @@ function StoreProfileScreen({ store, onBack, onSelectPart, user }) {
           </div>
           {isPremiumSeller && <span className="store-hub-premium" style={{marginTop:4}}>⭐ Premium</span>}
         </div>
-        {store?.ratingCount > 0 && (
-          <div className="store-profile-rating">
-            <Stars value={Math.round(store.rating)} size="sm" />
-            <span style={{fontWeight:700}}>{store.rating.toFixed(1)}</span>
-            <span style={{color:"var(--muted)",fontSize:13}}>({store.ratingCount} avaliações)</span>
+
+        {ratingCount > 0 && (
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14,padding:"12px 14px",background:"var(--card2)",borderRadius:"var(--radius-sm)"}}>
+            <div style={{fontSize:30,fontWeight:800,color:"var(--accent)",lineHeight:1}}>{avgRating.toFixed(1)}</div>
+            <div>
+              <Stars value={Math.round(avgRating)} size="md" />
+              <div style={{fontSize:12,color:"var(--muted)",marginTop:3}}>{ratingCount} {ratingCount===1?"avaliação":"avaliações"}</div>
+            </div>
           </div>
         )}
+
         {isPremiumSeller && (
           <a href={`https://wa.me/?text=Olá, vi sua loja no AutoStore!`} target="_blank" rel="noreferrer"
             style={{display:"flex",alignItems:"center",gap:8,background:"#25d366",color:"#fff",padding:"10px 14px",borderRadius:"var(--radius-sm)",textDecoration:"none",fontWeight:700,fontSize:13,marginBottom:14}}>
             <span style={{fontSize:18}}>💬</span> Contato via WhatsApp
           </a>
         )}
-        <div style={{fontSize:11,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".8px",marginBottom:10}}>
+
+        <div style={{fontSize:11,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".8px",marginBottom:10,marginTop:4}}>
           Peças disponíveis ({parts.length})
         </div>
         {loading ? <div className="spinner" /> : parts.length === 0 ? (
@@ -2276,12 +2346,43 @@ function StoreProfileScreen({ store, onBack, onSelectPart, user }) {
             </div>
           </div>
         ))}
+
+        {reviews.length > 0 && (
+          <div style={{marginTop:20}}>
+            <div style={{fontSize:11,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".8px",marginBottom:12}}>
+              Avaliações dos compradores
+            </div>
+            {visibleReviews.map((r, i) => (
+              <div key={r.id || i} className="review-card">
+                <div className="review-header">
+                  {r.buyerPhoto
+                    ? <img src={r.buyerPhoto} alt="" style={{width:32,height:32,borderRadius:"50%",objectFit:"cover"}} />
+                    : <div className="review-avatar">{(r.buyerName||"U")[0]}</div>
+                  }
+                  <div style={{flex:1}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                      <div className="review-name">{r.buyerName}</div>
+                      {r.createdAt && <div style={{fontSize:11,color:"var(--muted)"}}>{new Date(r.createdAt).toLocaleDateString("pt-BR")}</div>}
+                    </div>
+                    <Stars value={r.rating} size="sm" />
+                  </div>
+                </div>
+                {r.comment && <div className="review-comment">{r.comment}</div>}
+              </div>
+            ))}
+            {reviews.length > 3 && (
+              <button className="btn btn-secondary btn-sm" style={{width:"100%",marginTop:8}} onClick={() => setShowAllReviews(v=>!v)}>
+                {showAllReviews ? "Ver menos" : `Ver todas as ${reviews.length} avaliações`}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// ─── MINHA LOJA (seller view) ─────────────────────────────────────────────────
+
 function MinhaLojaScreen({ user, setScreen, onUpdateUser }) {
   const [parts, setParts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -2318,7 +2419,7 @@ function MinhaLojaScreen({ user, setScreen, onUpdateUser }) {
       await initFirebase();
       await firebaseFirestore.setDoc(
         firebaseFirestore.doc(firebaseFirestore.instance, "users", user.uid),
-        { name: storeName, specialty }, { merge: true }
+        { name: storeName, specialty, ...((() => { try { const c = localStorage.getItem("user_coords"); return c ? { coords: JSON.parse(c) } : {}; } catch { return {}; } })()) }, { merge: true }
       );
       onUpdateUser?.({ ...user, name: storeName, specialty });
       show("Loja atualizada! ✅", "success");
@@ -2658,6 +2759,9 @@ export default function App() {
   const [selectedStore, setSelectedStore] = useState(null);
   const [cart, setCart] = useState([]);
   const [cartLoading, setCartLoading] = useState(false);
+  const [userCoords, setUserCoords] = useState(() => {
+    try { const s = localStorage.getItem("user_coords"); return s ? JSON.parse(s) : null; } catch { return null; }
+  });
   const [premiumGate, setPremiumGate] = useState(null); // { title, desc, features }
   const [show, toastEl] = useToast();
 
@@ -2667,6 +2771,16 @@ export default function App() {
     el.textContent = styles;
     document.head.appendChild(el);
     return () => document.head.removeChild(el);
+  }, []);
+
+  // Geolocalização silenciosa — salva no localStorage para uso na ordenação de lojas
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(pos => {
+      const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      setUserCoords(coords);
+      localStorage.setItem("user_coords", JSON.stringify(coords));
+    }, () => {}, { maximumAge: 30 * 60 * 1000, timeout: 8000 });
   }, []);
 
   // Detectar retorno do Mercado Pago pela URL
@@ -2879,7 +2993,7 @@ export default function App() {
         </div>
         <div className="topbar-right">
           {!isSeller && (
-            <button className="cart-btn" onClick={() => setScreen("cart")}>
+            <button className="cart-btn" onClick={() => setScreen("cart")} title="Carrinho">
               <Icons.Cart />
               {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
             </button>
@@ -2888,11 +3002,11 @@ export default function App() {
       </div>
 
       {/* Screens */}
-      {screen === "home" && <HomeScreen user={user} setScreen={setScreen} cartCount={cartCount} setSelectedStore={s => { setSelectedStore(s); setScreen("store_profile"); }} setSelectedPart={setSelectedPart} />}
+      {screen === "home" && <HomeScreen user={user} setScreen={setScreen} cartCount={cartCount} setSelectedStore={s => { setSelectedStore(s); setScreen("store_profile"); }} setSelectedPart={setSelectedPart} userCoords={userCoords} />}
       {screen === "search" && <SearchScreen onVehicleFound={d => { setVehicleData(d); setScreen("results"); }} />}
       {screen === "results" && vehicleData && <ResultsScreen vehicleData={vehicleData} onBack={() => setScreen("search")} onSelectPart={setSelectedPart} />}
       {screen === "marketplace" && <MarketplaceScreen onSelectPart={setSelectedPart} />}
-      {screen === "lojas" && <CentralLojasScreen setScreen={setScreen} setSelectedStore={setSelectedStore} user={user} />}
+      {screen === "lojas" && <CentralLojasScreen setScreen={setScreen} setSelectedStore={setSelectedStore} user={user} userCoords={userCoords} />}
       {screen === "cart" && <CartScreen cart={cart} onUpdateQty={updateQty} onRemove={removeFromCart} onCheckout={checkout} loading={cartLoading} />}
       {screen === "orders" && <OrdersScreen user={user} />}
       {screen === "sell" && isSeller && <SellScreen user={user} setScreen={setScreen} />}

@@ -896,29 +896,93 @@ function SellDashboard({ user, setScreen }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
+    // ── Fallback: busca pedidos direto no Firestore client-side ─────────────
+    // Usado quando o backend ainda não tem a rota /orders/seller deployada
+    const loadFromFirestore = async () => {
+      try {
+        const { getFirestore, collection, getDocs, query, where, orderBy, limit } =
+          await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+        const apps = (await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js")).getApps();
+        if (!apps.length) return;
+        const db = getFirestore(apps[0]);
+
+        // Tenta query indexada primeiro
+        let snap;
+        try {
+          const q = query(
+            collection(db, "orders"),
+            where("sellerIds", "array-contains", user.uid),
+            orderBy("createdAt", "desc"),
+            limit(100)
+          );
+          snap = await getDocs(q);
+        } catch {
+          // Índice ainda não criado — sem orderBy
+          const q2 = query(collection(db, "orders"), where("sellerIds", "array-contains", user.uid), limit(100));
+          snap = await getDocs(q2);
+        }
+
+        // Se não há sellerIds gravados, varre pedidos recentes e filtra client-side
+        if (snap.empty) {
+          try {
+            const allQ = query(collection(db, "orders"), orderBy("createdAt", "desc"), limit(300));
+            const allSnap = await getDocs(allQ);
+            snap = { docs: allSnap.docs.filter(d => d.data().items?.some(i => i.sellerId === user.uid)) };
+          } catch {
+            snap = { docs: [] };
+          }
+        }
+
+        if (cancelled) return;
+        const parsed = snap.docs.map(doc => {
+          const d = doc.data();
+          const myItems = (d.items || []).filter(i => i.sellerId === user.uid);
+          const myTotal = myItems.reduce((s, i) => s + Number(i.price || 0) * Number(i.quantity || 1), 0);
+          return { id: doc.id, ...d, createdAt: d.createdAt?.toDate?.() ?? null, myItems, myTotal, buyerName: d.buyerName || "Comprador" };
+        });
+        setOrders(parsed);
+      } catch (err) {
+        console.warn("Firestore fallback error:", err);
+      }
+    };
+
     const load = async () => {
       try {
         await initFirebase();
         const token = await firebaseAuth.instance.currentUser?.getIdToken();
         const headers = { Authorization: `Bearer ${token}` };
 
-        const [ordersRes, partsRes] = await Promise.all([
-          fetch(`${API}/orders/seller`, { headers }),
-          fetch(`${API}/marketplaceParts?sellerId=${user.uid}`),
-        ]);
+        // Peças — sempre disponível
+        fetch(`${API}/marketplaceParts?sellerId=${user.uid}`)
+          .then(r => r.ok ? r.json() : { data: [] })
+          .then(d => { if (!cancelled) setParts(d.data || []); })
+          .catch(() => {});
 
-        const ordersData = await ordersRes.json();
-        const partsData = await partsRes.json();
+        // Pedidos — tenta rota nova, com fallback robusto
+        const ordersRes = await fetch(`${API}/orders/seller`, { headers });
+        const contentType = ordersRes.headers.get("content-type") || "";
 
-        setOrders(ordersData.data || []);
-        setParts(partsData.data || []);
+        if (ordersRes.ok && contentType.includes("application/json")) {
+          // Rota existe e funciona ✅
+          const ordersData = await ordersRes.json();
+          if (!cancelled) setOrders(ordersData.data || []);
+        } else {
+          // Rota retornou 404 HTML ou erro — backend não atualizado ainda
+          // Busca direto no Firestore como fallback
+          await loadFromFirestore();
+        }
       } catch (e) {
-        console.error("Dashboard load error:", e);
+        console.warn("Dashboard API error, using Firestore fallback:", e.message);
+        await loadFromFirestore();
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
+
     load();
+    return () => { cancelled = true; };
   }, []);
 
   // ── Cálculos reais ──────────────────────────────────────────────────────────

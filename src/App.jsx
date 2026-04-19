@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import AgentChat from "./components/AgentChat";
 
 const FIREBASE_CONFIG = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -3626,6 +3627,9 @@ export default function App() {
           </button>
         ))}
       </nav>
+
+      {/* ── Assistente IA flutuante ── */}
+      <AgentChat user={user} />
     </div>
   );
 }

@@ -106,12 +106,24 @@ service cloud.firestore {
     match /orders/{orderId} {
       // Comprador vê seus próprios pedidos
       allow read: if isAuthenticated()
-        && (resource.data.buyerId == request.auth.uid || isAdmin());
-      // Somente o backend (admin SDK) cria pedidos
+        && resource.data.buyerId == request.auth.uid;
+
+      // Vendedor vê pedidos onde ele tem itens (campo sellerIds — array de uids)
+      allow read: if isAuthenticated()
+        && request.auth.uid in resource.data.sellerIds;
+
+      // Admin vê tudo
+      allow read: if isAdmin();
+
+      // Criação: somente via backend (Admin SDK) ou usuário autenticado via SDK cliente
       allow create: if isAuthenticated();
-      // Atualização de status: comprador ou admin
+
+      // Atualização de status: comprador, vendedor do pedido ou admin
       allow update: if isAuthenticated()
-        && (resource.data.buyerId == request.auth.uid || isAdmin());
+        && (resource.data.buyerId == request.auth.uid
+          || request.auth.uid in resource.data.sellerIds
+          || isAdmin());
+
       allow delete: if isAdmin();
     }
 

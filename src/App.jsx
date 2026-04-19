@@ -898,18 +898,20 @@ function SellDashboard({ user, setScreen }) {
   useEffect(() => {
     let cancelled = false;
 
-    // ── Fallback: busca pedidos direto no Firestore client-side ─────────────
-    // Usado quando o backend ainda não tem a rota /orders/seller deployada
+    // ── Fallback: busca pedidos usando a instância Firestore já inicializada ──
+    // Funciona enquanto o backend não tem GET /orders/seller deployado.
+    // Usa firebaseFirestore (já inicializado pelo initFirebase) com o token
+    // do usuário logado — as rules do Firestore permitem isso.
     const loadFromFirestore = async () => {
       try {
-        const { getFirestore, collection, getDocs, query, where, orderBy, limit } =
+        // Importa só as funções de query (a instância db já existe via initFirebase)
+        const { collection, getDocs, query, where, orderBy, limit } =
           await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
-        const apps = (await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js")).getApps();
-        if (!apps.length) return;
-        const db = getFirestore(apps[0]);
 
-        // Tenta query indexada primeiro
-        let snap;
+        const db = firebaseFirestore.instance;  // instância autenticada com o usuário logado
+
+        // 1ª tentativa: pedidos onde sellerIds contém o uid (pedidos novos com o fix)
+        let myOrders = [];
         try {
           const q = query(
             collection(db, "orders"),
@@ -917,34 +919,50 @@ function SellDashboard({ user, setScreen }) {
             orderBy("createdAt", "desc"),
             limit(100)
           );
-          snap = await getDocs(q);
-        } catch {
-          // Índice ainda não criado — sem orderBy
-          const q2 = query(collection(db, "orders"), where("sellerIds", "array-contains", user.uid), limit(100));
-          snap = await getDocs(q2);
+          const snap = await getDocs(q);
+          myOrders = snap.docs.map(doc => {
+            const d = doc.data();
+            const myItems = (d.items || []).filter(i => i.sellerId === user.uid);
+            const myTotal = myItems.reduce((s, i) => s + Number(i.price || 0) * Number(i.quantity || 1), 0);
+            return { id: doc.id, ...d, createdAt: d.createdAt?.toDate?.() ?? null, myItems, myTotal, buyerName: d.buyerName || "Comprador" };
+          });
+        } catch (e) {
+          console.warn("sellerIds query failed:", e.message);
         }
 
-        // Se não há sellerIds gravados, varre pedidos recentes e filtra client-side
-        if (snap.empty) {
+        // 2ª tentativa: pedidos onde buyerId é do usuário (caso seja comprador-vendedor)
+        // e pedidos sem sellerIds (pedidos antigos) — filtra client-side por items.sellerId
+        if (myOrders.length === 0) {
           try {
-            const allQ = query(collection(db, "orders"), orderBy("createdAt", "desc"), limit(300));
-            const allSnap = await getDocs(allQ);
-            snap = { docs: allSnap.docs.filter(d => d.data().items?.some(i => i.sellerId === user.uid)) };
-          } catch {
-            snap = { docs: [] };
+            // Busca os pedidos mais recentes sem filtro (permitido pelas rules se o usuário
+            // for dono: buyerId == auth.uid). Para pedidos de outros compradores onde o vendedor
+            // é o usuário logado, o backend é necessário.
+            const q2 = query(
+              collection(db, "orders"),
+              where("buyerId", "==", user.uid),
+              orderBy("createdAt", "desc"),
+              limit(100)
+            );
+            const snap2 = await getDocs(q2);
+            // Inclui também pedidos onde o usuário é vendedor nos items
+            const asSeller = snap2.docs
+              .filter(doc => doc.data().items?.some(i => i.sellerId === user.uid))
+              .map(doc => {
+                const d = doc.data();
+                const myItems = (d.items || []).filter(i => i.sellerId === user.uid);
+                const myTotal = myItems.reduce((s, i) => s + Number(i.price || 0) * Number(i.quantity || 1), 0);
+                return { id: doc.id, ...d, createdAt: d.createdAt?.toDate?.() ?? null, myItems, myTotal, buyerName: d.buyerName || "Comprador" };
+              });
+            if (asSeller.length > 0) myOrders = asSeller;
+          } catch (e2) {
+            console.warn("buyerId fallback failed:", e2.message);
           }
         }
 
-        if (cancelled) return;
-        const parsed = snap.docs.map(doc => {
-          const d = doc.data();
-          const myItems = (d.items || []).filter(i => i.sellerId === user.uid);
-          const myTotal = myItems.reduce((s, i) => s + Number(i.price || 0) * Number(i.quantity || 1), 0);
-          return { id: doc.id, ...d, createdAt: d.createdAt?.toDate?.() ?? null, myItems, myTotal, buyerName: d.buyerName || "Comprador" };
-        });
-        setOrders(parsed);
+        if (!cancelled) setOrders(myOrders);
       } catch (err) {
-        console.warn("Firestore fallback error:", err);
+        console.warn("Firestore fallback error:", err.message);
+        if (!cancelled) setOrders([]);
       }
     };
 
@@ -969,8 +987,7 @@ function SellDashboard({ user, setScreen }) {
           const ordersData = await ordersRes.json();
           if (!cancelled) setOrders(ordersData.data || []);
         } else {
-          // Rota retornou 404 HTML ou erro — backend não atualizado ainda
-          // Busca direto no Firestore como fallback
+          // Rota retornou 404/HTML — backend não atualizado ainda, usa Firestore
           await loadFromFirestore();
         }
       } catch (e) {

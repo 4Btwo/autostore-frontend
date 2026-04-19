@@ -969,33 +969,16 @@ function SellDashboard({ user, setScreen }) {
     const load = async () => {
       try {
         await initFirebase();
-        const token = await firebaseAuth.instance.currentUser?.getIdToken();
 
-        // Peças — busca pelo backend (rota pública, sempre funciona)
+        // Peças — rota pública do backend
         fetch(`${API}/marketplaceParts?sellerId=${user.uid}`)
           .then(r => r.ok ? r.json() : { data: [] })
           .then(d => { if (!cancelled) setParts(d.data || []); })
           .catch(() => {});
 
-        // Pedidos — tenta rota do backend primeiro (se já foi deployada)
-        // Se ainda retornar 404, usa Firestore direto (silenciosamente)
-        let backendOk = false;
-        try {
-          const ordersRes = await fetch(`${API}/orders/seller`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (ordersRes.ok) {
-            const ct = ordersRes.headers.get("content-type") || "";
-            if (ct.includes("application/json")) {
-              const ordersData = await ordersRes.json();
-              if (!cancelled) setOrders(ordersData.data || []);
-              backendOk = true;
-            }
-          }
-        } catch (_) { /* backend offline ou rota ainda não existe */ }
-
-        // Fallback Firestore — usado quando backend não tem a rota ainda
-        if (!backendOk) await loadFromFirestore();
+        // Pedidos — Firestore direto (regras já permitem sellerIds e buyerId)
+        // O backend será usado automaticamente quando a rota /orders/seller existir
+        await loadFromFirestore();
 
       } catch (e) {
         await loadFromFirestore();

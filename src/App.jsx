@@ -970,28 +970,34 @@ function SellDashboard({ user, setScreen }) {
       try {
         await initFirebase();
         const token = await firebaseAuth.instance.currentUser?.getIdToken();
-        const headers = { Authorization: `Bearer ${token}` };
 
-        // Peças — sempre disponível
+        // Peças — busca pelo backend (rota pública, sempre funciona)
         fetch(`${API}/marketplaceParts?sellerId=${user.uid}`)
           .then(r => r.ok ? r.json() : { data: [] })
           .then(d => { if (!cancelled) setParts(d.data || []); })
           .catch(() => {});
 
-        // Pedidos — tenta rota nova, com fallback robusto
-        const ordersRes = await fetch(`${API}/orders/seller`, { headers });
-        const contentType = ordersRes.headers.get("content-type") || "";
+        // Pedidos — tenta rota do backend primeiro (se já foi deployada)
+        // Se ainda retornar 404, usa Firestore direto (silenciosamente)
+        let backendOk = false;
+        try {
+          const ordersRes = await fetch(`${API}/orders/seller`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (ordersRes.ok) {
+            const ct = ordersRes.headers.get("content-type") || "";
+            if (ct.includes("application/json")) {
+              const ordersData = await ordersRes.json();
+              if (!cancelled) setOrders(ordersData.data || []);
+              backendOk = true;
+            }
+          }
+        } catch (_) { /* backend offline ou rota ainda não existe */ }
 
-        if (ordersRes.ok && contentType.includes("application/json")) {
-          // Rota existe e funciona ✅
-          const ordersData = await ordersRes.json();
-          if (!cancelled) setOrders(ordersData.data || []);
-        } else {
-          // Rota retornou 404/HTML — backend não atualizado ainda, usa Firestore
-          await loadFromFirestore();
-        }
+        // Fallback Firestore — usado quando backend não tem a rota ainda
+        if (!backendOk) await loadFromFirestore();
+
       } catch (e) {
-        console.warn("Dashboard API error, using Firestore fallback:", e.message);
         await loadFromFirestore();
       } finally {
         if (!cancelled) setLoading(false);

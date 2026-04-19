@@ -1,7 +1,19 @@
 import { useState, useRef, useEffect } from "react";
-import { getAuth } from "firebase/auth";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
+// Usa a mesma instância global do Firebase que o App.jsx carrega via CDN dinâmico
+async function getFirebaseToken() {
+  try {
+    if (typeof firebaseAuth !== "undefined" && firebaseAuth?.instance?.currentUser) {
+      return await firebaseAuth.instance.currentUser.getIdToken();
+    }
+    const { getAuth } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js");
+    return await getAuth().currentUser?.getIdToken() ?? null;
+  } catch {
+    return null;
+  }
+}
 
 // ─── Mapa de perfil visual por tipo de usuário ────────────────────────────────
 const PROFILE_INFO = {
@@ -95,7 +107,7 @@ export default function AgentChat({ user }) {
     setLoading(true);
 
     try {
-      const token = await getAuth().currentUser?.getIdToken();
+      const token = await getFirebaseToken();
       if (!token) throw new Error("Usuário não autenticado");
 
       const res = await fetch(`${API}/agent/chat`, {

@@ -1235,7 +1235,15 @@ function SellDashboard({ user, setScreen }) {
         <div style={{fontSize:15,fontWeight:700,color:"var(--text)",marginBottom:12}}>Ações Rápidas</div>
         <button className="dash-action-btn primary" onClick={() => setScreen("sell_form")}>
           <span style={{fontSize:20}}>📦</span>
-          <span style={{fontWeight:700,color:"#fff",fontSize:14}}>+ Novo Produto</span>
+          <span style={{fontWeight:700,color:"#fff",fontSize:14}}>+ Novo Produto (OEM)</span>
+        </button>
+        <button className="dash-action-btn" onClick={() => setScreen("chassi")}
+          style={{borderColor:"rgba(59,130,246,.4)",background:"rgba(59,130,246,.06)"}}>
+          <span style={{fontSize:20}}>🔩</span>
+          <div style={{textAlign:"left"}}>
+            <div style={{fontWeight:700,color:"var(--text)",fontSize:14}}>Desmanche por Chassi</div>
+            <div style={{fontSize:11,color:"var(--muted)"}}>Publica lote inteiro de um veículo</div>
+          </div>
         </button>
         <button className="dash-action-btn" onClick={() => setScreen("minha_loja")}>
           <span style={{fontSize:20}}>🏪</span>
@@ -2815,6 +2823,57 @@ function MinhaLojaScreen({ user, setScreen, onUpdateUser }) {
         </div>
       )}
 
+      {/* ── PRECIFICAÇÃO PENDENTE (peças do desmanche) ── */}
+      {(() => {
+        const pending = parts.filter(p => p.pendingPrice && Number(p.price || 0) === 0);
+        if (!pending.length) return null;
+        return (
+          <div style={{background:"rgba(245,158,11,.08)",border:"1px solid rgba(245,158,11,.35)",
+            borderRadius:"var(--radius)",padding:"14px 16px",marginBottom:14}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+              <span style={{fontSize:18}}>⚠️</span>
+              <div style={{fontWeight:700,fontSize:14,color:"#f59e0b"}}>
+                {pending.length} peça{pending.length>1?"s":""} aguardando precificação
+              </div>
+            </div>
+            <div style={{fontSize:12,color:"var(--muted)",marginBottom:12,lineHeight:1.5}}>
+              Peças do desmanche publicadas sem preço não aparecem para compradores. Defina o valor abaixo.
+            </div>
+            {pending.slice(0,3).map(p => (
+              <div key={p.id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                <span style={{fontSize:13,flex:1,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                  {p.name}
+                </span>
+                <input
+                  className="input"
+                  type="number"
+                  min="0"
+                  placeholder="R$ preço"
+                  style={{width:110,padding:"6px 10px",fontSize:13}}
+                  onBlur={async e => {
+                    const val = Number(e.target.value);
+                    if (!val) return;
+                    try {
+                      await initFirebase();
+                      const { doc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+                      await updateDoc(doc(firebaseFirestore.instance, "marketplaceParts", p.id), {
+                        price: val, pendingPrice: false,
+                      });
+                      setParts(prev => prev.map(x => x.id === p.id ? {...x, price: val, pendingPrice: false} : x));
+                    } catch {}
+                  }}
+                />
+              </div>
+            ))}
+            {pending.length > 3 && (
+              <div style={{fontSize:12,color:"var(--muted)"}}>
+                + {pending.length - 3} peças — role para baixo para precificar todas
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {/* ── LISTA DE PEÇAS ── */}
       <div style={{fontSize:11,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".8px",marginBottom:10}}>
         Minhas peças anunciadas
@@ -2840,6 +2899,7 @@ function MinhaLojaScreen({ user, setScreen, onUpdateUser }) {
                 <span style={{fontSize:11,color:"var(--muted)"}}>{item.stock} un</span>
                 {item.moderationStatus === "pending" && <span style={{fontSize:10,background:"rgba(245,158,11,.15)",color:"#f59e0b",padding:"2px 6px",borderRadius:99}}>⏳ Em análise</span>}
                 {item.active === false && <span style={{fontSize:10,background:"rgba(239,68,68,.12)",color:"#ef4444",padding:"2px 6px",borderRadius:99}}>❌ Inativo</span>}
+                {item.pendingPrice && Number(item.price||0)===0 && <span style={{fontSize:10,background:"rgba(245,158,11,.15)",color:"#f59e0b",padding:"2px 6px",borderRadius:99}}>💰 Sem preço</span>}
               </div>
             </div>
             <div className="part-price-col">
@@ -2961,6 +3021,315 @@ function PlansScreen({ user, setScreen, onUpdateUser }) {
           🔒 Sem fidelidade nem multa
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── CHASSI / DESMANCHE ───────────────────────────────────────────────────────
+function ChassiDesmancheScreen({ user, setScreen }) {
+  const [step, setStep] = useState(1); // 1=input VIN, 2=catálogo, 3=preços, 4=sucesso
+  const [vin, setVin] = useState("");
+  const [vehicle, setVehicle] = useState(null);
+  const [catalog, setCatalog] = useState([]);
+  const [selected, setSelected] = useState({}); // { subId: true }
+  const [prices, setPrices] = useState({});      // { subId_oemRef: valor }
+  const [loading, setLoading] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [result, setResult] = useState(null);
+  const [show, toastEl] = useToast();
+
+  const lookupVin = async () => {
+    const clean = vin.toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/g, "");
+    if (clean.length !== 17) return show("Chassi deve ter 17 caracteres alfanuméricos");
+    setLoading(true);
+    try {
+      await initFirebase();
+      const token = await firebaseAuth.instance.currentUser?.getIdToken();
+      const res = await fetch(`${API}/chassi/${clean}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Erro ao consultar chassi");
+
+      const veh = data.data || data;
+      setVehicle(veh);
+
+      // Busca catálogo de subcoleções
+      const catRes = await fetch(`${API}/chassi/${clean}/catalog`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => null);
+
+      let cat = [];
+      if (catRes?.ok) {
+        const catData = await catRes.json();
+        cat = catData.data || [];
+      }
+
+      // Se não tiver endpoint catalog, usa estrutura padrão do backend
+      if (!cat.length) {
+        cat = [
+          { id: "motor_cambio",      label: "Motor e Câmbio",       icon: "⚙️",  totalParts: 24 },
+          { id: "suspensao_direcao", label: "Suspensão e Direção",   icon: "🔩",  totalParts: 20 },
+          { id: "freios",            label: "Freios",                icon: "🛞",  totalParts: 12 },
+          { id: "eletrica",          label: "Elétrica",              icon: "⚡",  totalParts: 18 },
+          { id: "carroceria",        label: "Carroceria",            icon: "🚗",  totalParts: 22 },
+          { id: "interiores",        label: "Interiores",            icon: "🪑",  totalParts: 15 },
+          { id: "rodas_pneus",       label: "Rodas e Pneus",         icon: "⭕",  totalParts: 8  },
+          { id: "ar_cond",           label: "Ar-Condicionado",       icon: "❄️",  totalParts: 6  },
+        ];
+      }
+      setCatalog(cat);
+      setStep(2);
+    } catch (e) {
+      show(e.message || "Erro ao consultar chassi");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleSub = (id) => setSelected(s => ({ ...s, [id]: !s[id] }));
+  const selectedIds = Object.keys(selected).filter(k => selected[k]);
+
+  const publish = async () => {
+    if (!selectedIds.length) return show("Selecione ao menos uma categoria");
+    setPublishing(true);
+    try {
+      await initFirebase();
+      const token = await firebaseAuth.instance.currentUser?.getIdToken();
+      const res = await fetch(`${API}/chassi/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          vin: vehicle.vin || vehicle.chassis || vin.toUpperCase(),
+          vehicleData: vehicle,
+          selectedSubcollections: selectedIds,
+          prices,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Erro ao publicar");
+      setResult(data.data || data);
+      setStep(4);
+    } catch (e) {
+      show(e.message || "Erro ao publicar lote");
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  return (
+    <div className="screen screen-inner">
+      {toastEl}
+
+      {/* Step 1 — Consulta VIN */}
+      {step === 1 && (
+        <>
+          <div className="page-title">Desmanche por Chassi</div>
+          <div className="page-sub">Publique todas as peças do veículo de uma vez</div>
+
+          <div className="card" style={{borderColor:"rgba(59,130,246,.25)",background:"rgba(59,130,246,.05)",marginBottom:20}}>
+            <div style={{fontSize:13,color:"var(--muted)",lineHeight:1.7}}>
+              🔍 Informe o chassi (VIN) de 17 dígitos do veículo.<br/>
+              Identificamos o veículo e geramos o catálogo completo de peças para você selecionar o que tem disponível.
+            </div>
+          </div>
+
+          <div className="input-wrap">
+            <label className="label">Chassi (VIN) — 17 caracteres</label>
+            <input
+              className="input"
+              style={{fontSize:18,fontWeight:700,letterSpacing:3,textTransform:"uppercase"}}
+              placeholder="9BWZZZ377VT004251"
+              maxLength={17}
+              value={vin}
+              onChange={e => setVin(e.target.value.toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/g,""))}
+              onKeyDown={e => e.key === "Enter" && lookupVin()}
+            />
+            <div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>
+              Encontre no parabrisa, porta do motorista ou documento do veículo
+            </div>
+          </div>
+
+          <button className="btn btn-primary" onClick={lookupVin} disabled={loading || vin.length < 17}>
+            {loading ? "Consultando..." : "🔍 Consultar Chassi"}
+          </button>
+        </>
+      )}
+
+      {/* Step 2 — Catálogo de subcoleções */}
+      {step === 2 && vehicle && (
+        <>
+          <button className="back-btn" onClick={() => setStep(1)}>
+            <Icons.Back /> Voltar
+          </button>
+
+          {/* Banner do veículo */}
+          <div className="vehicle-banner" style={{marginBottom:16}}>
+            <div className="veh-plate">{vehicle.vin || vehicle.chassis}</div>
+            <div className="veh-name">{vehicle.brand} {vehicle.model} {vehicle.year}</div>
+            <div className="veh-specs">
+              {vehicle.engine && <span className="veh-spec">⚙️ {vehicle.engine}</span>}
+              {vehicle.fuel   && <span className="veh-spec">⛽ {vehicle.fuel}</span>}
+              {vehicle.color  && <span className="veh-spec">🎨 {vehicle.color}</span>}
+              {vehicle.source === "local_decode" && (
+                <span className="veh-spec" style={{color:"var(--warning)"}}>⚠️ Dados estimados</span>
+              )}
+            </div>
+          </div>
+
+          <div style={{fontSize:15,fontWeight:700,marginBottom:4}}>Selecione as categorias disponíveis</div>
+          <div style={{fontSize:13,color:"var(--muted)",marginBottom:14}}>
+            Marque os sistemas que o veículo possui para publicar em lote
+          </div>
+
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
+            {catalog.map((sub) => {
+              const isOn = selected[sub.id];
+              return (
+                <button
+                  key={sub.id}
+                  onClick={() => toggleSub(sub.id)}
+                  style={{
+                    background: isOn ? "rgba(59,130,246,.12)" : "var(--card)",
+                    border: `2px solid ${isOn ? "var(--primary)" : "var(--border)"}`,
+                    borderRadius: "var(--radius)",
+                    padding: "14px 12px",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    transition: "all .2s",
+                  }}
+                >
+                  <div style={{fontSize:24,marginBottom:6}}>{sub.icon}</div>
+                  <div style={{fontSize:13,fontWeight:700,color:"var(--text)",marginBottom:2}}>{sub.label}</div>
+                  <div style={{fontSize:11,color:"var(--muted)"}}>{sub.totalParts} peças</div>
+                  {isOn && (
+                    <div style={{marginTop:6,fontSize:10,fontWeight:700,color:"var(--primary3)",
+                      background:"rgba(59,130,246,.1)",padding:"2px 8px",borderRadius:99,display:"inline-block"}}>
+                      ✓ Selecionado
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {selectedIds.length > 0 && (
+            <div style={{background:"var(--card2)",border:"1px solid var(--border)",borderRadius:"var(--radius-sm)",
+              padding:"10px 14px",marginBottom:16,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <span style={{fontSize:13,color:"var(--muted)"}}>
+                {selectedIds.length} categoria{selectedIds.length > 1 ? "s" : ""} selecionada{selectedIds.length > 1 ? "s" : ""}
+              </span>
+              <span style={{fontSize:13,fontWeight:700,color:"var(--primary3)"}}>
+                {catalog.filter(s => selected[s.id]).reduce((t, s) => t + s.totalParts, 0)} peças
+              </span>
+            </div>
+          )}
+
+          <div className="btn-row">
+            <button className="btn btn-secondary" onClick={() => {
+              const all = {};
+              catalog.forEach(s => { all[s.id] = true; });
+              setSelected(all);
+            }}>Selecionar tudo</button>
+            <button
+              className="btn btn-primary"
+              disabled={!selectedIds.length}
+              onClick={() => setStep(3)}
+            >
+              Definir preços →
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Step 3 — Preços por categoria */}
+      {step === 3 && (
+        <>
+          <button className="back-btn" onClick={() => setStep(2)}>
+            <Icons.Back /> Categorias
+          </button>
+          <div className="page-title" style={{marginBottom:4}}>Precificação</div>
+          <div style={{fontSize:13,color:"var(--muted)",marginBottom:16,lineHeight:1.6}}>
+            Defina um preço médio por categoria. Você pode ajustar individualmente depois em Minha Loja.
+            Deixe em zero para publicar e precificar depois.
+          </div>
+
+          {catalog.filter(s => selected[s.id]).map(sub => (
+            <div key={sub.id} className="card" style={{marginBottom:10}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                <span style={{fontSize:22}}>{sub.icon}</span>
+                <div>
+                  <div style={{fontWeight:700,fontSize:14}}>{sub.label}</div>
+                  <div style={{fontSize:12,color:"var(--muted)"}}>{sub.totalParts} peças</div>
+                </div>
+              </div>
+              <div className="input-wrap" style={{marginBottom:0}}>
+                <label className="label">Preço médio (R$) — deixe 0 para definir depois</label>
+                <input
+                  className="input"
+                  type="number"
+                  min="0"
+                  placeholder="0,00"
+                  value={prices[`${sub.id}_default`] || ""}
+                  onChange={e => {
+                    const val = e.target.value;
+                    // Aplica o preço para todas as peças da subcoleção
+                    const newPrices = { ...prices };
+                    sub.parts?.forEach(p => { newPrices[`${sub.id}_${p.oemRef}`] = val; });
+                    newPrices[`${sub.id}_default`] = val;
+                    setPrices(newPrices);
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+
+          <div className="card" style={{borderColor:"rgba(245,158,11,.3)",background:"rgba(245,158,11,.06)",marginBottom:16}}>
+            <div style={{fontSize:13,color:"var(--muted)",lineHeight:1.6}}>
+              ⚠️ Peças com preço zero ficarão marcadas como "precificação pendente" e não aparecerão para compradores até você definir o valor em Minha Loja.
+            </div>
+          </div>
+
+          <button
+            className="btn btn-primary"
+            onClick={publish}
+            disabled={publishing}
+            style={{marginBottom:10}}
+          >
+            {publishing ? "Publicando lote..." : `🚀 Publicar ${selectedIds.length} categorias`}
+          </button>
+          <button className="btn btn-secondary" onClick={() => setStep(2)}>
+            Voltar
+          </button>
+        </>
+      )}
+
+      {/* Step 4 — Sucesso */}
+      {step === 4 && result && (
+        <div style={{display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center",paddingTop:40}}>
+          <div style={{fontSize:72,marginBottom:16}}>🎉</div>
+          <div className="page-title" style={{color:"var(--success)",marginBottom:8}}>Lote publicado!</div>
+          <div style={{fontSize:14,color:"var(--muted)",marginBottom:8}}>
+            {result.created || 0} peças cadastradas com sucesso
+          </div>
+          {result.errors?.length > 0 && (
+            <div style={{fontSize:12,color:"var(--warning)",marginBottom:16}}>
+              {result.errors.length} erro{result.errors.length > 1 ? "s" : ""} ao cadastrar algumas peças
+            </div>
+          )}
+          <div style={{fontSize:13,color:"var(--muted)",maxWidth:280,lineHeight:1.6,marginBottom:32}}>
+            Acesse Minha Loja para definir preços das peças pendentes e gerenciar seu estoque.
+          </div>
+          <button className="btn btn-primary" style={{maxWidth:240}} onClick={() => setScreen("minha_loja")}>
+            Ver Minha Loja
+          </button>
+          <button className="btn btn-secondary" style={{maxWidth:240,marginTop:10}} onClick={() => {
+            setStep(1); setVin(""); setVehicle(null); setSelected({}); setPrices({}); setResult(null);
+          }}>
+            Cadastrar outro veículo
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -3180,7 +3549,7 @@ export default function App() {
   const activeNavKey = () => {
     if (screen === "results") return "search";
     if (screen === "cart" || screen === "marketplace") return "lojas";
-    if (screen === "sell_form") return "sell";
+    if (screen === "sell_form" || screen === "chassi") return "sell";
     if (screen === "plans") return "profile";
     return screen;
   };
@@ -3227,6 +3596,7 @@ export default function App() {
       {screen === "orders" && <OrdersScreen user={user} />}
       {screen === "sell" && isSeller && <SellScreen user={user} setScreen={setScreen} />}
       {screen === "sell_form" && isSeller && <SellFormScreen user={user} setScreen={setScreen} />}
+      {screen === "chassi" && isSeller && <ChassiDesmancheScreen user={user} setScreen={setScreen} />}
       {screen === "minha_loja" && isSeller && <MinhaLojaScreen user={user} setScreen={setScreen} onUpdateUser={u => setUser(u)} />}
       {screen === "plans" && <PlansScreen user={user} setScreen={setScreen} onUpdateUser={u => setUser(u)} />}
       {screen === "support" && <SupportScreen user={user} />}

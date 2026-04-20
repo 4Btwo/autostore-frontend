@@ -519,7 +519,7 @@ function AuthScreen({ onLogin }) {
     const userRef = firebaseFirestore.doc(firebaseFirestore.instance, "users", cred.user.uid);
     const snap = await firebaseFirestore.getDoc(userRef);
     if (!snap.exists()) {
-      await firebaseFirestore.setDoc(userRef, {
+      const newUser = {
         name: cred.user.displayName || "Usuário Google",
         email: cred.user.email,
         photo: cred.user.photoURL || null,
@@ -527,10 +527,13 @@ function AuthScreen({ onLogin }) {
         sellerVerified: false,
         active: true,
         createdAt: new Date().toISOString(),
-      });
-      onLogin({ uid: cred.user.uid, email: cred.user.email, name: cred.user.displayName, photo: cred.user.photoURL, type: "buyer" });
+      };
+      await firebaseFirestore.setDoc(userRef, newUser);
+      onLogin({ uid: cred.user.uid, ...newUser });
     } else {
-      onLogin({ uid: cred.user.uid, email: cred.user.email, ...snap.data() });
+      // Sempre lê do Firestore — respeita type: "admin" e qualquer outra alteração
+      const userData = { uid: cred.user.uid, email: cred.user.email, ...snap.data() };
+      onLogin(userData);
     }
   };
 

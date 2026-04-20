@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import AgentChat from "./components/AgentChat";
+import AdminModeracaoScreen from "./AdminModeracaoScreen";
 
 const FIREBASE_CONFIG = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -884,6 +885,21 @@ function HomeScreen({ user, setScreen, cartCount, setSelectedStore, setSelectedP
             </button>
           </div>
         </>
+      )}
+
+      {/* ── ACESSO ADMIN (só isAdmin) ── */}
+      {user?.isAdmin && (
+        <div style={{padding:"0 16px 20px"}}>
+          <button className="dash-action-btn"
+            style={{borderColor:"rgba(239,68,68,.4)",background:"rgba(239,68,68,.06)"}}
+            onClick={() => setScreen("admin_moderacao")}>
+            <span style={{fontSize:20}}>🛡️</span>
+            <div style={{textAlign:"left"}}>
+              <div style={{fontWeight:700,color:"var(--text)",fontSize:14}}>Painel Admin</div>
+              <div style={{fontSize:11,color:"var(--muted)"}}>Moderar anúncios pendentes</div>
+            </div>
+          </button>
+        </div>
       )}
     </div>
   );
@@ -3413,7 +3429,9 @@ export default function App() {
       firebaseAuth.onAuthStateChanged(firebaseAuth.instance, async fbUser => {
         if (fbUser) {
           const snap = await firebaseFirestore.getDoc(firebaseFirestore.doc(firebaseFirestore.instance, "users", fbUser.uid));
-          setUser({ uid: fbUser.uid, email: fbUser.email, ...snap.data() });
+          const userData = { uid: fbUser.uid, email: fbUser.email, ...snap.data() };
+          setUser(userData);
+          if (userData.type === "admin" || userData.isAdmin) setScreen("admin_moderacao");
         } else setUser(null);
         setAuthLoading(false);
       });
@@ -3487,7 +3505,7 @@ export default function App() {
     </div>
   );
 
-  if (!user) return <AuthScreen onLogin={u => { setUser(u); setScreen("home"); }} />;
+  if (!user) return <AuthScreen onLogin={u => { setUser(u); setScreen(u.type === "admin" || u.isAdmin ? "admin_moderacao" : "home"); }} />;
 
   const isSeller = user?.type === "seller";
   const isPremium = user?.plan === "premium";
@@ -3613,6 +3631,9 @@ export default function App() {
       {screen === "payment_success" && <PaymentSuccessScreen setScreen={setScreen} clearCart={clearCart} />}
       {screen === "payment_failure" && <PaymentFailureScreen setScreen={setScreen} />}
       {screen === "payment_pending" && <PaymentPendingScreen setScreen={setScreen} />}
+      {screen === "admin_moderacao" && user?.isAdmin && (
+        <AdminModeracaoScreen user={user} onBack={() => setScreen("home")} />
+      )}
 
       {/* Bottom Nav */}
       <nav className="bottom-nav">

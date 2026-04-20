@@ -129,7 +129,7 @@ const EXTRA_STYLES = `
 `;
 
 // ─── COMPONENTE PRINCIPAL ──────────────────────────────────────────────────────
-export default function AdminModeracaoScreen({ user }) {
+export default function AdminModeracaoScreen({ user, onBack }) {
   const [tab, setTab] = useState("pending");
   const [parts, setParts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -368,10 +368,20 @@ Retorne APENAS o JSON, sem explicações adicionais.`;
 
       {/* Topbar */}
       <div className="mod-topbar">
-        <div>
-          <div className="mod-logo">🛡️ Moderação</div>
-          <div style={{ fontSize: 10, color: "var(--muted)", fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1, textTransform: "uppercase" }}>
-            Painel Admin · AutoStore
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {onBack && (
+            <button
+              onClick={onBack}
+              style={{ background: "var(--card)", border: "1px solid var(--border2)", borderRadius: "var(--radius-xs)", padding: "6px 12px", color: "var(--text2)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+            >
+              ← Voltar
+            </button>
+          )}
+          <div>
+            <div className="mod-logo">🛡️ Moderação</div>
+            <div style={{ fontSize: 10, color: "var(--muted)", fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 1, textTransform: "uppercase" }}>
+              Painel Admin · AutoStore
+            </div>
           </div>
         </div>
         {stats.pending > 0 && (

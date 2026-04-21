@@ -1797,9 +1797,10 @@ function CartScreen({ cart, onUpdateQty, onRemove, onCheckout, loading }) {
 
 // ─── ORDERS ───────────────────────────────────────────────────────────────────
 function OrdersScreen({ user }) {
+  const isSeller = user?.type === "seller";
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [reviewing, setReviewing] = useState(null); // pedido sendo avaliado
+  const [reviewing, setReviewing] = useState(null);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -1825,14 +1826,34 @@ function OrdersScreen({ user }) {
     finally { setSubmitting(false); }
   };
 
-  const statusLabel = { pending: "Pendente", confirmed: "Confirmado", shipped: "Enviado", delivered: "Entregue", cancelled: "Cancelado" };
-  const statusBadge = { pending: "badge-pending", confirmed: "badge-confirmed", shipped: "badge-shipped", delivered: "badge-delivered", cancelled: "badge-cancelled" };
+  const statusLabel = {
+    pending:         "Pendente",
+    awaiting_payment:"Aguard. Pagamento",
+    confirmed:       "Confirmado",
+    shipped:         "Enviado",
+    delivered:       "Entregue",
+    cancelled:       "Cancelado",
+    payment_failed:  "Pagamento Falhou",
+    refunded:        "Reembolsado",
+  };
+  const statusBadge = {
+    pending:         "badge-pending",
+    awaiting_payment:"badge-pending",
+    confirmed:       "badge-confirmed",
+    shipped:         "badge-shipped",
+    delivered:       "badge-delivered",
+    cancelled:       "badge-cancelled",
+    payment_failed:  "badge-cancelled",
+    refunded:        "badge-pending",
+  };
 
   useEffect(() => {
     const load = async () => {
       try {
         const token = await getAuthToken();
-        const res = await fetch(`${API}/orders/my`, { headers: { Authorization: `Bearer ${token}` } });
+        // Vendedor carrega suas vendas; comprador carrega suas compras
+        const endpoint = isSeller ? `${API}/orders/seller` : `${API}/orders/my`;
+        const res = await fetch(endpoint, { headers: { Authorization: `Bearer ${token}` } });
         const data = await res.json();
         setOrders(data.data || []);
       } catch { setOrders([]); }
@@ -1864,13 +1885,13 @@ function OrdersScreen({ user }) {
           </div>
         </div>
       )}
-      <div className="page-title">Meus Pedidos</div>
-      <div className="page-sub">Histórico de compras</div>
+      <div className="page-title">{isSeller ? "Minhas Vendas" : "Meus Pedidos"}</div>
+      <div className="page-sub">{isSeller ? "Pedidos com seus itens" : "Histórico de compras"}</div>
       {loading ? <div className="spinner" /> : orders.length === 0 ? (
         <div className="empty">
           <div className="empty-icon">📦</div>
-          <div className="empty-title">Nenhum pedido ainda</div>
-          <div className="empty-sub">Seus pedidos aparecerão aqui</div>
+          <div className="empty-title">{isSeller ? "Nenhuma venda ainda" : "Nenhum pedido ainda"}</div>
+          <div className="empty-sub">{isSeller ? "Seus pedidos de clientes aparecerão aqui" : "Seus pedidos aparecerão aqui"}</div>
         </div>
       ) : orders.map((order, i) => (
         <div key={order.id || i} className="order-card">
@@ -1878,25 +1899,31 @@ function OrdersScreen({ user }) {
             <div>
               <div style={{ fontWeight: 600, fontSize: 14 }}>Pedido #{(order.id || "").slice(-8).toUpperCase()}</div>
               <div className="order-date">{order.createdAt ? new Date(order.createdAt).toLocaleDateString("pt-BR") : "—"}</div>
+              {isSeller && order.buyerName && (
+                <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>👤 {order.buyerName}</div>
+              )}
             </div>
             <span className={`badge ${statusBadge[order.status] || "badge-pending"}`}>{statusLabel[order.status] || order.status}</span>
           </div>
-          {(order.items || []).map((item, j) => (
+          {/* Vendedor vê só seus itens no pedido; comprador vê todos */}
+          {(isSeller ? (order.myItems || order.items || []) : (order.items || [])).map((item, j) => (
             <div key={j} className="order-item">
               <span>{item.name || "Peça"} × {item.quantity}</span>
               <span style={{ color: "var(--muted)" }}>{fmt(item.price * item.quantity)}</span>
             </div>
           ))}
           <div className="order-total-row">
-            <span style={{ fontWeight: 600 }}>Total</span>
-            <span style={{ fontFamily: "'Inter',sans-serif", fontSize: 22, color: "var(--accent)" }}>{fmt(order.total)}</span>
+            <span style={{ fontWeight: 600 }}>Total{isSeller ? " da venda" : ""}</span>
+            <span style={{ fontFamily: "'Inter',sans-serif", fontSize: 22, color: "var(--accent)" }}>
+              {fmt(isSeller ? (order.myTotal ?? order.total) : order.total)}
+            </span>
           </div>
-          {order.status === "delivered" && !order.reviewed && (
+          {!isSeller && order.status === "delivered" && !order.reviewed && (
             <button className="btn btn-secondary" style={{marginTop:10,fontSize:13}} onClick={() => setReviewing(order)}>
               ⭐ Avaliar compra
             </button>
           )}
-          {order.reviewed && (
+          {!isSeller && order.reviewed && (
             <div style={{marginTop:10,fontSize:12,color:"var(--success)"}}>✅ Avaliação enviada</div>
           )}
         </div>

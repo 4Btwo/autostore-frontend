@@ -2138,18 +2138,24 @@ function ProfileScreen({ user, onLogout, onUpdateUser, setScreen, requirePremium
   }, []);
 
   const saveProfile = async () => {
+    if (!name.trim()) return show("Nome não pode estar vazio");
     setSavingProfile(true);
     try {
-      await initFirebase();
-      await firebaseFirestore.setDoc(
-        firebaseFirestore.doc(firebaseFirestore.instance, "users", user.uid),
-        { name, bio },
-        { merge: true }
-      );
-      onUpdateUser?.({ ...user, name, bio });
+      const token = await getAuthToken();
+      const res = await fetch(`${API}/users/profile`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: name.trim(), bio: bio.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Erro ao salvar");
+      onUpdateUser?.({ ...user, name: name.trim(), bio: bio.trim() });
       show("Perfil salvo! ✅", "success");
-    } catch { show("Erro ao salvar perfil"); }
-    finally { setSavingProfile(false); }
+    } catch (e) {
+      show(e.message || "Erro ao salvar perfil");
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   const uploadPhoto = async (e) => {
@@ -2712,15 +2718,20 @@ function MinhaLojaScreen({ user, setScreen, onUpdateUser }) {
   const saveStore = async () => {
     setSaving(true);
     try {
-      await initFirebase();
-      await firebaseFirestore.setDoc(
-        firebaseFirestore.doc(firebaseFirestore.instance, "users", user.uid),
-        { name: storeName, specialty, ...((() => { try { const c = localStorage.getItem("user_coords"); return c ? { coords: JSON.parse(c) } : {}; } catch { return {}; } })()) }, { merge: true }
-      );
+      const token = await getAuthToken();
+      let coords;
+      try { const c = localStorage.getItem("user_coords"); if (c) coords = JSON.parse(c); } catch {}
+      const res = await fetch(`${API}/users/profile`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: storeName, specialty, ...(coords ? { coords } : {}) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Erro ao salvar");
       onUpdateUser?.({ ...user, name: storeName, specialty });
       show("Loja atualizada! ✅", "success");
       setEditing(false);
-    } catch { show("Erro ao salvar", "error"); }
+    } catch (e) { show(e.message || "Erro ao salvar", "error"); }
     finally { setSaving(false); }
   };
 
@@ -2759,32 +2770,37 @@ function MinhaLojaScreen({ user, setScreen, onUpdateUser }) {
     if (!editingPart) return;
     setSavingPart(true);
     try {
-      await initFirebase();
-      await firebaseFirestore.updateDoc(
-        firebaseFirestore.doc(firebaseFirestore.instance, "marketplaceParts", editingPart),
-        { price: Number(editForm.price), stock: Number(editForm.stock), active: editForm.active }
-      );
+      const token = await getAuthToken();
+      const res = await fetch(`${API}/marketplaceParts/${editingPart}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ price: Number(editForm.price), stock: Number(editForm.stock), active: editForm.active }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Erro ao salvar");
       setParts(prev => prev.map(p => p.id === editingPart
         ? { ...p, price: Number(editForm.price), stock: Number(editForm.stock), active: editForm.active }
         : p
       ));
       show("Peça atualizada! ✅", "success");
       setEditingPart(null);
-    } catch { show("Erro ao salvar peça", "error"); }
+    } catch (e) { show(e.message || "Erro ao salvar peça", "error"); }
     finally { setSavingPart(false); }
   };
 
   const deletePart = async (partId) => {
     if (!window.confirm("Remover este anúncio?")) return;
     try {
-      await initFirebase();
-      await firebaseFirestore.updateDoc(
-        firebaseFirestore.doc(firebaseFirestore.instance, "marketplaceParts", partId),
-        { active: false }
-      );
+      const token = await getAuthToken();
+      const res = await fetch(`${API}/marketplaceParts/${partId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ active: false }),
+      });
+      if (!res.ok) throw new Error("Erro ao remover");
       setParts(prev => prev.filter(p => p.id !== partId));
       show("Anúncio removido", "success");
-    } catch { show("Erro ao remover", "error"); }
+    } catch (e) { show(e.message || "Erro ao remover", "error"); }
   };
 
   const shareLink = () => {
@@ -3033,11 +3049,12 @@ function PlansScreen({ user, setScreen, onUpdateUser }) {
     // Em produção: integrar com Mercado Pago Subscriptions
     setTimeout(async () => {
       try {
-        await initFirebase();
-        await firebaseFirestore.setDoc(
-          firebaseFirestore.doc(firebaseFirestore.instance, "users", user.uid),
-          { plan: "premium" }, { merge: true }
-        );
+        const token = await getAuthToken();
+        await fetch(`${API}/users/profile`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ plan: "premium" }),
+        });
         onUpdateUser?.({ ...user, plan: "premium" });
         show("Plano Premium ativado! ⭐", "success");
       } catch { show("Erro ao processar. Tente novamente."); }

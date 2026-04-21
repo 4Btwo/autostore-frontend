@@ -4,65 +4,124 @@
       "collectionGroup": "compatibilities",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "brandSlug", "order": "ASCENDING" },
-        { "fieldPath": "modelSlug", "order": "ASCENDING" },
+        { "fieldPath": "brandSlug",          "order": "ASCENDING" },
+        { "fieldPath": "modelSlug",          "order": "ASCENDING" },
         { "fieldPath": "engineDisplacement", "order": "ASCENDING" },
-        { "fieldPath": "fuelNorm", "order": "ASCENDING" },
-        { "fieldPath": "active", "order": "ASCENDING" }
+        { "fieldPath": "fuelNorm",           "order": "ASCENDING" },
+        { "fieldPath": "active",             "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "compatibilities",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "vehicleId",    "order": "ASCENDING" },
+        { "fieldPath": "active",       "order": "ASCENDING" },
+        { "fieldPath": "masterPartId", "order": "ASCENDING" }
       ]
     },
     {
       "collectionGroup": "marketplaceParts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "active",           "order": "ASCENDING" },
+        { "fieldPath": "moderationStatus", "order": "ASCENDING" },
+        { "fieldPath": "createdAt",        "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "marketplaceParts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sellerId",         "order": "ASCENDING" },
+        { "fieldPath": "active",           "order": "ASCENDING" },
+        { "fieldPath": "moderationStatus", "order": "ASCENDING" },
+        { "fieldPath": "createdAt",        "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "marketplaceParts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "masterPartId",     "order": "ASCENDING" },
+        { "fieldPath": "active",           "order": "ASCENDING" },
+        { "fieldPath": "moderationStatus", "order": "ASCENDING" },
+        { "fieldPath": "createdAt",        "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "marketplaceParts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "moderationStatus", "order": "ASCENDING" },
+        { "fieldPath": "createdAt",        "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "marketplaceParts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "active",           "order": "ASCENDING" },
+        { "fieldPath": "moderationStatus", "order": "ASCENDING" },
+        { "fieldPath": "condition",        "order": "ASCENDING" },
+        { "fieldPath": "createdAt",        "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "marketplaceParts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sellerId",     "order": "ASCENDING" },
+        { "fieldPath": "masterPartId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "marketplaceParts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "masterPartId",    "order": "ASCENDING" },
+        { "fieldPath": "confidenceScore", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "masterParts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "active",     "order": "ASCENDING" },
+        { "fieldPath": "categoryId", "order": "ASCENDING" },
+        { "fieldPath": "name",       "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "masterParts",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "active", "order": "ASCENDING" },
-        { "fieldPath": "moderationStatus", "order": "ASCENDING" },
+        { "fieldPath": "name",   "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "masterParts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "active",    "order": "ASCENDING" },
+        { "fieldPath": "source",    "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
     {
-      "collectionGroup": "marketplaceParts",
+      "collectionGroup": "masterParts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "sellerId", "order": "ASCENDING" },
-        { "fieldPath": "active", "order": "ASCENDING" },
-        { "fieldPath": "moderationStatus", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "marketplaceParts",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "masterPartId", "order": "ASCENDING" },
-        { "fieldPath": "active", "order": "ASCENDING" },
-        { "fieldPath": "moderationStatus", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "marketplaceParts",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "moderationStatus", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "marketplaceParts",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "active", "order": "ASCENDING" },
-        { "fieldPath": "moderationStatus", "order": "ASCENDING" },
-        { "fieldPath": "condition", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        { "fieldPath": "oemNumbers", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "active",     "order": "ASCENDING" }
       ]
     },
     {
       "collectionGroup": "orders",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "buyerId", "order": "ASCENDING" },
+        { "fieldPath": "buyerId",   "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
@@ -78,7 +137,7 @@
       "collectionGroup": "reviews",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "sellerId", "order": "ASCENDING" },
+        { "fieldPath": "sellerId",  "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
@@ -94,26 +153,43 @@
       "collectionGroup": "notifications",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "userId",    "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
     {
-      "collectionGroup": "masterParts",
+      "collectionGroup": "notifications",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "active", "order": "ASCENDING" },
-        { "fieldPath": "categoryId", "order": "ASCENDING" },
-        { "fieldPath": "name", "order": "ASCENDING" }
+        { "fieldPath": "userId",    "order": "ASCENDING" },
+        { "fieldPath": "read",      "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "masterParts",
+      "fieldPath": "name",
+      "indexes": [
+        { "order": "ASCENDING",  "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" }
       ]
     },
     {
       "collectionGroup": "masterParts",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "oemNumber", "order": "ASCENDING" }
+      "fieldPath": "oemNumbers",
+      "indexes": [
+        { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION" }
+      ]
+    },
+    {
+      "collectionGroup": "marketplaceParts",
+      "fieldPath": "moderationStatus",
+      "indexes": [
+        { "order": "ASCENDING",      "queryScope": "COLLECTION" },
+        { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION" }
       ]
     }
-  ],
-  "fieldOverrides": []
+  ]
 }

@@ -2,7 +2,10 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ─── Funções auxiliares ──────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    // HELPER FUNCTIONS
+    // ═══════════════════════════════════════════════════════════════
+
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -19,92 +22,199 @@ service cloud.firestore {
       return field is string && field.size() >= minLen && field.size() <= maxLen;
     }
 
-    // ─── Usuários ────────────────────────────────────────────────────────────
+    // Retorna os campos que mudaram entre o documento antigo e o novo
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // USUÁRIOS
+    // ═══════════════════════════════════════════════════════════════
     match /users/{uid} {
       allow read: if isOwner(uid) || isAdmin();
 
-      // CORREÇÃO: campo isAdmin e isPremium podem não existir no documento
-      // (Google login e cadastro por email não enviam esses campos)
-      // Regra anterior: request.resource.data.isAdmin == false → null != false → NEGADO
       allow create: if isOwner(uid)
         && isValidString(request.resource.data.email, 3, 200)
         && (!("isAdmin"   in request.resource.data) || request.resource.data.isAdmin   == false)
         && (!("isPremium" in request.resource.data) || request.resource.data.isPremium == false);
 
-      // Atualização: owner pode alterar qualquer campo exceto os protegidos
-      allow update: if (isOwner(uid)
-          && !("isAdmin"        in request.resource.data.diff(resource.data).affectedKeys())
-          && !("isPremium"      in request.resource.data.diff(resource.data).affectedKeys())
-          && !("sellerVerified" in request.resource.data.diff(resource.data).affectedKeys()))
+      allow update: if (
+          isOwner(uid)
+          && !("isAdmin"        in changedKeys())
+          && !("isPremium"      in changedKeys())
+          && !("sellerVerified" in changedKeys())
+        )
         || isAdmin();
 
       allow delete: if isAdmin();
     }
 
-    // ─── Veículos ────────────────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    // CATÁLOGO — leitura pública, escrita apenas admin
+    // ═══════════════════════════════════════════════════════════════
     match /vehicles/{vehicleId} {
-      allow read: if true;
+      allow read:  if true;
       allow write: if isAdmin();
     }
 
     match /models/{modelId} {
-      allow read: if true;
+      allow read:  if true;
       allow write: if isAdmin();
     }
 
     match /brands/{brandId} {
-      allow read: if true;
+      allow read:  if true;
       allow write: if isAdmin();
     }
 
     match /categories/{categoryId} {
-      allow read: if true;
+      allow read:  if true;
       allow write: if isAdmin();
     }
 
-    // ─── Peças mestras (catálogo) ─────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    // MASTER PARTS — Layer 3 (Catálogo Interno)
+    // - Leitura pública (necessário para o marketplace)
+    // - Escrita apenas via Admin SDK no backend (admin token)
+    // - Vendedores interagem apenas via API, nunca diretamente
+    // ═══════════════════════════════════════════════════════════════
     match /masterParts/{partId} {
-      allow read: if true;
+      allow read:  if true;
       allow write: if isAdmin();
     }
 
-    // ─── Compatibilidades ────────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    // COMPATIBILIDADES
+    // ═══════════════════════════════════════════════════════════════
     match /compatibilities/{compatId} {
-      allow read: if true;
+      allow read:  if true;
       allow write: if isAdmin();
     }
 
-    // ─── Marketplace ─────────────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    // MARKETPLACE PARTS — Layer 4 (Anúncios)
+    //
+    // ENFORCEMENT ESTRITO DO CATÁLOGO:
+    //   ✅ masterPartId é OBRIGATÓRIO e IMUTÁVEL após criação
+    //   ✅ sellerConfirmedCompatibility deve ser TRUE no create
+    //   ✅ price: número > 0
+    //   ✅ stock: inteiro >= 0
+    //   ✅ condition: apenas "new" ou "used"
+    //   ✅ Apenas campos conhecidos são permitidos (hasOnly)
+    //   ✅ masterPartId / source / confidenceScore são IMUTÁVEIS
+    //   ✅ Vendedor só pode alterar: price, stock, active, sellerNotes, images
+    // ═══════════════════════════════════════════════════════════════
     match /marketplaceParts/{partId} {
-      // Leitura pública: aprovados OU pendentes e ativos
+
+      // ── Leitura ──────────────────────────────────────────────────
       allow read: if resource.data.active == true;
-      // Admin lê tudo
       allow read: if isAdmin();
-      // Vendedor vê seus próprios anúncios independente de status
       allow read: if isAuthenticated()
         && resource.data.sellerId == request.auth.uid;
 
-      // CORREÇÃO: removido "active == false" — o backend cria com active: true
-      // A visibilidade pública é controlada por moderationStatus, não por active
+      // ── Criação ──────────────────────────────────────────────────
       allow create: if isAuthenticated()
-        && request.resource.data.sellerId == request.auth.uid
-        && request.resource.data.price > 0
-        && request.resource.data.stock >= 0
-        && request.resource.data.moderationStatus == "pending";
 
-      // CORREÇÃO: vendedor pode alterar active (desativar/reativar próprio anúncio)
-      // mas não pode alterar moderationStatus nem approvedBy
+        // Propriedade: sellerId deve ser o próprio usuário
+        && request.resource.data.sellerId == request.auth.uid
+
+        // Integridade do catálogo: masterPartId obrigatório e não-vazio
+        && request.resource.data.masterPartId is string
+        && request.resource.data.masterPartId.size() > 0
+
+        // Vendedor deve confirmar compatibilidade explicitamente
+        && request.resource.data.sellerConfirmedCompatibility == true
+
+        // Preço: número positivo
+        && request.resource.data.price is number
+        && request.resource.data.price > 0
+
+        // Estoque: inteiro não-negativo
+        && request.resource.data.stock is int
+        && request.resource.data.stock >= 0
+
+        // Condição: apenas "new" ou "used"
+        && request.resource.data.condition in ["new", "used"]
+
+        // Moderação: novos anúncios sempre começam como "pending"
+        && request.resource.data.moderationStatus == "pending"
+
+        // Schema enforcement: somente campos conhecidos são permitidos
+        && request.resource.data.keys().hasOnly([
+          "sellerId",
+          "masterPartId",
+          "price",
+          "stock",
+          "condition",
+          "state",
+          "sellerNotes",
+          "images",
+          "sellerConfirmedCompatibility",
+          "confidenceScore",
+          "confidenceLabel",
+          "confidenceBreakdown",
+          "source",
+          "active",
+          "moderationStatus",
+          "approvedAt",
+          "rejectedAt",
+          "rejectionReason",
+          "createdAt",
+          "updatedAt"
+        ]);
+
+      // ── Atualização ───────────────────────────────────────────────
       allow update: if isAdmin()
-        || (isAuthenticated()
+        || (
+          isAuthenticated()
           && resource.data.sellerId == request.auth.uid
-          && !("moderationStatus" in request.resource.data.diff(resource.data).affectedKeys())
-          && !("approvedBy"       in request.resource.data.diff(resource.data).affectedKeys()));
+
+          // Campos imutáveis: não podem ser alterados após criação
+          && !("masterPartId"                in changedKeys())
+          && !("source"                      in changedKeys())
+          && !("confidenceScore"             in changedKeys())
+          && !("confidenceLabel"             in changedKeys())
+          && !("confidenceBreakdown"         in changedKeys())
+          && !("sellerId"                    in changedKeys())
+          && !("sellerConfirmedCompatibility" in changedKeys())
+          && !("createdAt"                   in changedKeys())
+
+          // Campos de moderação: somente admin pode alterar
+          && !("moderationStatus" in changedKeys())
+          && !("approvedAt"       in changedKeys())
+          && !("rejectedAt"       in changedKeys())
+          && !("rejectionReason"  in changedKeys())
+
+          // Vendedor só pode alterar esses campos
+          && changedKeys().hasOnly([
+            "price",
+            "stock",
+            "active",
+            "sellerNotes",
+            "images",
+            "updatedAt"
+          ])
+
+          // Revalida price se foi alterado
+          && (
+            !("price" in changedKeys())
+            || (request.resource.data.price is number && request.resource.data.price > 0)
+          )
+
+          // Revalida stock se foi alterado
+          && (
+            !("stock" in changedKeys())
+            || (request.resource.data.stock is int && request.resource.data.stock >= 0)
+          )
+        );
 
       allow delete: if isAdmin()
         || (isAuthenticated() && resource.data.sellerId == request.auth.uid);
     }
 
-    // ─── Pedidos ─────────────────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    // PEDIDOS
+    // ═══════════════════════════════════════════════════════════════
     match /orders/{orderId} {
       allow read: if isAuthenticated()
         && resource.data.buyerId == request.auth.uid;
@@ -117,14 +227,18 @@ service cloud.firestore {
       allow create: if isAuthenticated();
 
       allow update: if isAuthenticated()
-        && (resource.data.buyerId == request.auth.uid
+        && (
+          resource.data.buyerId == request.auth.uid
           || request.auth.uid in resource.data.sellerIds
-          || isAdmin());
+          || isAdmin()
+        );
 
       allow delete: if isAdmin();
     }
 
-    // ─── Avaliações ──────────────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    // AVALIAÇÕES
+    // ═══════════════════════════════════════════════════════════════
     match /reviews/{reviewId} {
       allow read: if true;
       allow create: if isAuthenticated()
@@ -134,23 +248,29 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    // ─── Notificações ────────────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    // NOTIFICAÇÕES
+    // ═══════════════════════════════════════════════════════════════
     match /notifications/{notifId} {
       allow read: if isAuthenticated()
         && resource.data.userId == request.auth.uid;
       allow update: if isAuthenticated()
         && resource.data.userId == request.auth.uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["read"]);
+        && changedKeys().hasOnly(["read"]);
       allow create, delete: if isAdmin();
     }
 
-    // ─── Cache de chassi ─────────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    // CACHE DE CHASSI
+    // ═══════════════════════════════════════════════════════════════
     match /chassiCache/{vin} {
-      allow read: if isAuthenticated();
+      allow read:  if isAuthenticated();
       allow write: if isAdmin();
     }
 
-    // ─── Bloqueio geral ───────────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    // BLOQUEIO PADRÃO — nega tudo que não foi explicitamente permitido
+    // ═══════════════════════════════════════════════════════════════
     match /{document=**} {
       allow read, write: if false;
     }

@@ -34,6 +34,16 @@ async function initFirebase() {
   firebaseDatabase = { instance: getDatabase(app), dbRef, push, onValue };
 }
 
+/**
+ * Retorna o ID token do usuário logado.
+ * Lança erro explícito se não houver sessão — evita enviar "Bearer undefined" ao backend.
+ */
+async function getAuthToken() {
+  await initFirebase();
+  const token = await firebaseAuth.instance.currentUser?.getIdToken();
+  if (!token) throw new Error("Sessão expirada. Faça login novamente.");
+  return token;
+}
 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 const styles = `
@@ -1685,6 +1695,8 @@ function PartDetailScreen({ part, onBack, onAddToCart }) {
 function CartScreen({ cart, onUpdateQty, onRemove, onCheckout, loading }) {
   const total = cart.reduce((s, i) => s + (i.price * i.quantity), 0);
   const totalItems = cart.reduce((s, i) => s + i.quantity, 0);
+  const [addr, setAddr] = useState({ street: "", city: "", state: "", zipCode: "" });
+  const addrFilled = addr.street && addr.city && addr.state && addr.zipCode;
 
   if (cart.length === 0) return (
     <div className="screen screen-inner">
@@ -1723,6 +1735,39 @@ function CartScreen({ cart, onUpdateQty, onRemove, onCheckout, loading }) {
         </div>
       ))}
 
+      {/* ── Endereço de entrega ── */}
+      <div style={{ margin: "20px 0 8px", fontWeight: 600, fontSize: 15 }}>📦 Endereço de entrega</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <input
+          className="input"
+          placeholder="Rua e número"
+          value={addr.street}
+          onChange={e => setAddr(a => ({ ...a, street: e.target.value }))}
+        />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 80px", gap: 10 }}>
+          <input
+            className="input"
+            placeholder="Cidade"
+            value={addr.city}
+            onChange={e => setAddr(a => ({ ...a, city: e.target.value }))}
+          />
+          <input
+            className="input"
+            placeholder="UF"
+            maxLength={2}
+            value={addr.state}
+            onChange={e => setAddr(a => ({ ...a, state: e.target.value.toUpperCase() }))}
+          />
+        </div>
+        <input
+          className="input"
+          placeholder="CEP (somente números)"
+          maxLength={8}
+          value={addr.zipCode}
+          onChange={e => setAddr(a => ({ ...a, zipCode: e.target.value.replace(/\D/g, "") }))}
+        />
+      </div>
+
       <div className="cart-summary">
         <div className="cart-row"><span style={{ color: "var(--muted)" }}>Subtotal</span><span>{fmt(total)}</span></div>
         <div className="cart-row"><span style={{ color: "var(--muted)" }}>Frete</span><span style={{ color: "var(--muted)" }}>A combinar</span></div>
@@ -1731,9 +1776,20 @@ function CartScreen({ cart, onUpdateQty, onRemove, onCheckout, loading }) {
           <span style={{ fontWeight: 600 }}>Total</span>
           <span className="cart-total">{fmt(total)}</span>
         </div>
-        <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={onCheckout} disabled={loading}>
+        <button
+          className="btn btn-primary"
+          style={{ marginTop: 14, opacity: addrFilled ? 1 : 0.5 }}
+          onClick={() => addrFilled && onCheckout(addr)}
+          disabled={loading || !addrFilled}
+          title={!addrFilled ? "Preencha o endereço de entrega" : ""}
+        >
           {loading ? "Redirecionando para pagamento..." : <><Icons.Cart /> Pagar com Mercado Pago</>}
         </button>
+        {!addrFilled && (
+          <div style={{ textAlign: "center", fontSize: 12, color: "var(--muted)", marginTop: 6 }}>
+            Preencha o endereço de entrega para continuar
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1753,8 +1809,7 @@ function OrdersScreen({ user }) {
     if (!rating) return show("Selecione uma nota");
     setSubmitting(true);
     try {
-      await initFirebase();
-      const token = await firebaseAuth.instance.currentUser?.getIdToken();
+      const token = await getAuthToken();
       const sellerId = reviewing.items?.[0]?.sellerId || reviewing.sellerId;
       const res = await fetch(`${API}/reviews`, {
         method: "POST",
@@ -1776,8 +1831,7 @@ function OrdersScreen({ user }) {
   useEffect(() => {
     const load = async () => {
       try {
-        await initFirebase();
-        const token = await firebaseAuth.instance.currentUser?.getIdToken();
+        const token = await getAuthToken();
         const res = await fetch(`${API}/orders/my`, { headers: { Authorization: `Bearer ${token}` } });
         const data = await res.json();
         setOrders(data.data || []);
@@ -1919,8 +1973,7 @@ function SellFormScreen({ user, setScreen }) {
     if (!form.price || !form.stock) return show("Preencha preço e estoque");
     setLoading(true);
     try {
-      await initFirebase();
-      const token = await firebaseAuth.instance.currentUser?.getIdToken();
+      const token = await getAuthToken();
       // Usa FormData para enviar fotos junto com os dados
       const fd = new FormData();
       fd.append("oemNumber", masterPart.oemNumber);
@@ -2104,8 +2157,7 @@ function ProfileScreen({ user, onLogout, onUpdateUser, setScreen, requirePremium
     if (!file) return;
     setPhotoLoading(true);
     try {
-      await initFirebase();
-      const token = await firebaseAuth.instance.currentUser?.getIdToken();
+      const token = await getAuthToken();
       const fd = new FormData();
       fd.append("photo", file);
       const res = await fetch(`${API}/users/photo`, { method: "PATCH", headers: { Authorization: `Bearer ${token}` }, body: fd });
@@ -2678,8 +2730,7 @@ function MinhaLojaScreen({ user, setScreen, onUpdateUser }) {
     if (!file) return;
     setPhotoUploading(true);
     try {
-      const { getAuth } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js");
-      const token = await getAuth().currentUser?.getIdToken();
+      const token = await getAuthToken();
       const fd = new FormData();
       fd.append("photo", file);
       const res = await fetch(`${API}/users/photo`, {
@@ -3063,8 +3114,7 @@ function ChassiDesmancheScreen({ user, setScreen }) {
     if (clean.length !== 17) return show("Chassi deve ter 17 caracteres alfanuméricos");
     setLoading(true);
     try {
-      await initFirebase();
-      const token = await firebaseAuth.instance.currentUser?.getIdToken();
+      const token = await getAuthToken();
       const res = await fetch(`${API}/chassi/${clean}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -3114,8 +3164,7 @@ function ChassiDesmancheScreen({ user, setScreen }) {
     if (!selectedIds.length) return show("Selecione ao menos uma categoria");
     setPublishing(true);
     try {
-      await initFirebase();
-      const token = await firebaseAuth.instance.currentUser?.getIdToken();
+      const token = await getAuthToken();
       const res = await fetch(`${API}/chassi/publish`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -3464,12 +3513,11 @@ export default function App() {
     setPremiumGate(config);
   };
 
-  const checkout = async () => {
+  const checkout = async (shippingAddress) => {
     if (cart.length === 0) return;
     setCartLoading(true);
     try {
-      await initFirebase();
-      const token = await firebaseAuth.instance.currentUser?.getIdToken();
+      const token = await getAuthToken();
       const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
       const items = cart.map(i => ({
         marketplacePartId: i.id,
@@ -3482,7 +3530,7 @@ export default function App() {
       const res = await fetch(`${API}/payments/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ items, total }),
+        body: JSON.stringify({ items, total, shippingAddress: shippingAddress || null }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Erro ao criar pagamento");

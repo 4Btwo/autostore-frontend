@@ -2,14 +2,19 @@ import { useState, useRef, useEffect } from "react";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
-// Usa a mesma instância global do Firebase que o App.jsx carrega via CDN dinâmico
+/**
+ * Obtém o ID token do usuário autenticado.
+ * Usa a instância `firebaseAuth` inicializada pelo App.jsx (CDN).
+ * Declarada como `let` em escopo de módulo — já estará disponível
+ * quando o componente montar, pois App.jsx chama initFirebase() antes de renderizar.
+ */
 async function getFirebaseToken() {
   try {
+    // firebaseAuth é um global de módulo definido pelo App.jsx
     if (typeof firebaseAuth !== "undefined" && firebaseAuth?.instance?.currentUser) {
       return await firebaseAuth.instance.currentUser.getIdToken();
     }
-    const { getAuth } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js");
-    return await getAuth().currentUser?.getIdToken() ?? null;
+    return null;
   } catch {
     return null;
   }
@@ -103,12 +108,22 @@ export default function AgentChat({ user }) {
     if (!text || loading) return;
 
     setInput("");
-    setMessages((prev) => [...prev, { role: "user", text, id: Date.now() }]);
+    const updatedMessages = [...messages, { role: "user", text, id: Date.now() }];
+    setMessages(updatedMessages);
     setLoading(true);
 
     try {
       const token = await getFirebaseToken();
       if (!token) throw new Error("Usuário não autenticado");
+
+      // Monta histórico no formato esperado pelo backend (exclui a msg de boas-vindas inicial)
+      const history = updatedMessages
+        .filter((m) => m.role === "user" || (m.role === "assistant" && m.id !== messages[0]?.id))
+        .slice(0, -1) // exclui a mensagem atual (será enviada como "message")
+        .map((m) => ({
+          role: m.role === "user" ? "user" : "assistant",
+          content: m.text,
+        }));
 
       const res = await fetch(`${API}/agent/chat`, {
         method: "POST",
@@ -116,7 +131,7 @@ export default function AgentChat({ user }) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: text, history }),
       });
 
       const data = await res.json();

@@ -681,12 +681,12 @@ function HomeScreen({ user, setScreen, cartCount, setSelectedStore, setSelectedP
   const [loadingProducts, setLoadingProducts] = useState(true);
 
   const categories = [
-    { icon: "🔩", label: "Suspensão" },
-    { icon: "🔊", label: "Som Automotivo" },
-    { icon: "🪑", label: "Interior" },
-    { icon: "🛞", label: "Roda e Pneu" },
     { icon: "🔧", label: "Motor" },
+    { icon: "⚙️", label: "Câmbio" },
+    { icon: "🔩", label: "Suspensão" },
+    { icon: "🛑", label: "Freios" },
     { icon: "💡", label: "Elétrica" },
+    { icon: "🎁", label: "Acessórios" },
   ];
 
   // Busca lojas e produtos reais da API
@@ -900,8 +900,8 @@ function HomeScreen({ user, setScreen, cartCount, setSelectedStore, setSelectedP
         </>
       )}
 
-      {/* ── ACESSO ADMIN (só isAdmin) ── */}
-      {user?.isAdmin && (
+      {/* ── ACESSO ADMIN (só isAdmin ou type=admin) ── */}
+      {(user?.isAdmin || user?.type === "admin") && (
         <div style={{padding:"0 16px 20px"}}>
           <button className="dash-action-btn"
             style={{borderColor:"rgba(239,68,68,.4)",background:"rgba(239,68,68,.06)"}}
@@ -1801,10 +1801,53 @@ function OrdersScreen({ user }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [reviewing, setReviewing] = useState(null);
+  const [detailOrder, setDetailOrder] = useState(null);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null); // orderId em processamento
   const [show, toastEl] = useToast();
+
+  // ── Cancelar pedido ──
+  const handleCancel = async (order) => {
+    if (!window.confirm("Cancelar este pedido?")) return;
+    setActionLoading(order.id);
+    try {
+      const token = await getAuthToken();
+      const res = await fetch(`${API}/orders/${order.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: "cancelled" }),
+      });
+      const data = await res.json();
+      if (!res.ok) return show(data.message || "Erro ao cancelar pedido", "error");
+      show("Pedido cancelado com sucesso", "success");
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: "cancelled" } : o));
+    } catch { show("Erro ao cancelar pedido", "error"); }
+    finally { setActionLoading(null); }
+  };
+
+  // ── Tentar pagamento novamente ──
+  const handleRetryPayment = async (order) => {
+    setActionLoading(order.id);
+    try {
+      const token = await getAuthToken();
+      const res = await fetch(`${API}/payment/retry`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ orderId: order.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) return show(data.message || "Erro ao processar pagamento", "error");
+      if (data.data?.checkoutUrl) {
+        window.open(data.data.checkoutUrl, "_blank");
+      } else {
+        show("Pedido enviado para pagamento!", "success");
+        setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: "pending" } : o));
+      }
+    } catch { show("Erro ao tentar pagamento", "error"); }
+    finally { setActionLoading(null); }
+  };
 
   const submitReview = async () => {
     if (!rating) return show("Selecione uma nota");
@@ -1895,6 +1938,7 @@ function OrdersScreen({ user }) {
         </div>
       ) : orders.map((order, i) => (
         <div key={order.id || i} className="order-card">
+          {/* ── Cabeçalho ── */}
           <div className="order-header">
             <div>
               <div style={{ fontWeight: 600, fontSize: 14 }}>Pedido #{(order.id || "").slice(-8).toUpperCase()}</div>
@@ -1905,29 +1949,136 @@ function OrdersScreen({ user }) {
             </div>
             <span className={`badge ${statusBadge[order.status] || "badge-pending"}`}>{statusLabel[order.status] || order.status}</span>
           </div>
-          {/* Vendedor vê só seus itens no pedido; comprador vê todos */}
+
+          {/* ── Itens ── */}
           {(isSeller ? (order.myItems || order.items || []) : (order.items || [])).map((item, j) => (
             <div key={j} className="order-item">
               <span>{item.name || "Peça"} × {item.quantity}</span>
               <span style={{ color: "var(--muted)" }}>{fmt(item.price * item.quantity)}</span>
             </div>
           ))}
+
+          {/* ── Total ── */}
           <div className="order-total-row">
             <span style={{ fontWeight: 600 }}>Total{isSeller ? " da venda" : ""}</span>
             <span style={{ fontFamily: "'Inter',sans-serif", fontSize: 22, color: "var(--accent)" }}>
               {fmt(isSeller ? (order.myTotal ?? order.total) : order.total)}
             </span>
           </div>
-          {!isSeller && order.status === "delivered" && !order.reviewed && (
-            <button className="btn btn-secondary" style={{marginTop:10,fontSize:13}} onClick={() => setReviewing(order)}>
-              ⭐ Avaliar compra
-            </button>
-          )}
-          {!isSeller && order.reviewed && (
-            <div style={{marginTop:10,fontSize:12,color:"var(--success)"}}>✅ Avaliação enviada</div>
-          )}
+
+          {/* ── Ações do comprador ── */}
+          {!isSeller && (() => {
+            const s = order.status;
+            const busy = actionLoading === order.id;
+            return (
+              <div style={{marginTop:12,display:"flex",flexWrap:"wrap",gap:8}}>
+                {/* Ver detalhes — sempre disponível */}
+                <button
+                  className="btn btn-secondary"
+                  style={{fontSize:12,padding:"7px 13px",flex:"1 1 auto"}}
+                  onClick={() => setDetailOrder(order)}
+                >
+                  📋 Ver detalhes
+                </button>
+
+                {/* Rastrear entrega — shipped ou delivered */}
+                {(s === "shipped" || s === "delivered") && order.trackingCode && (
+                  <button
+                    className="btn btn-secondary"
+                    style={{fontSize:12,padding:"7px 13px",flex:"1 1 auto"}}
+                    onClick={() => window.open(`https://rastreamento.correios.com.br/app/index.php?objetos=${order.trackingCode}`, "_blank")}
+                  >
+                    🚚 Rastrear entrega
+                  </button>
+                )}
+
+                {/* Tentar pagamento novamente — awaiting_payment ou payment_failed */}
+                {(s === "awaiting_payment" || s === "payment_failed") && (
+                  <button
+                    className="btn btn-primary"
+                    style={{fontSize:12,padding:"7px 13px",flex:"1 1 auto",opacity:busy?.5:1}}
+                    disabled={busy}
+                    onClick={() => handleRetryPayment(order)}
+                  >
+                    {busy ? "⏳ Processando..." : "💳 Pagar agora"}
+                  </button>
+                )}
+
+                {/* Cancelar — apenas se pagamento pendente ou aguardando */}
+                {(s === "awaiting_payment" || s === "pending") && (
+                  <button
+                    className="btn"
+                    style={{fontSize:12,padding:"7px 13px",background:"transparent",border:"1px solid var(--danger)",color:"var(--danger)",borderRadius:"var(--radius-sm)",flex:"1 1 auto",opacity:busy?.5:1}}
+                    disabled={busy}
+                    onClick={() => handleCancel(order)}
+                  >
+                    {busy ? "⏳..." : "✕ Cancelar pedido"}
+                  </button>
+                )}
+
+                {/* Avaliar compra — entregue e ainda não avaliado */}
+                {s === "delivered" && !order.reviewed && (
+                  <button className="btn btn-secondary" style={{fontSize:12,padding:"7px 13px",flex:"1 1 auto"}} onClick={() => setReviewing(order)}>
+                    ⭐ Avaliar compra
+                  </button>
+                )}
+                {s === "delivered" && order.reviewed && (
+                  <div style={{fontSize:12,color:"var(--success)",fontWeight:600,padding:"7px 4px"}}>✅ Avaliação enviada</div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       ))}
+
+      {/* ── Modal detalhe do pedido ── */}
+      {detailOrder && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.75)",zIndex:200,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={() => setDetailOrder(null)}>
+          <div style={{background:"var(--bg2)",borderRadius:"20px 20px 0 0",padding:"24px 20px 40px",width:"100%",maxWidth:480,maxHeight:"85vh",overflowY:"auto"}} onClick={e => e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div style={{fontWeight:700,fontSize:17}}>Detalhes do Pedido</div>
+              <button onClick={() => setDetailOrder(null)} style={{background:"var(--card2)",border:"none",borderRadius:8,color:"var(--text)",padding:"4px 10px",cursor:"pointer",fontSize:16}}>✕</button>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+              <span style={{color:"var(--muted)",fontSize:13}}>Nº do pedido</span>
+              <span style={{fontWeight:600,fontSize:13}}>#{(detailOrder.id||"").slice(-8).toUpperCase()}</span>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+              <span style={{color:"var(--muted)",fontSize:13}}>Data</span>
+              <span style={{fontSize:13}}>{detailOrder.createdAt ? new Date(detailOrder.createdAt).toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"}) : "—"}</span>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+              <span style={{color:"var(--muted)",fontSize:13}}>Status</span>
+              <span className={`badge ${statusBadge[detailOrder.status] || "badge-pending"}`} style={{fontSize:11}}>{statusLabel[detailOrder.status] || detailOrder.status}</span>
+            </div>
+            {detailOrder.trackingCode && (
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <span style={{color:"var(--muted)",fontSize:13}}>Rastreio</span>
+                <span style={{fontFamily:"monospace",fontSize:12,color:"var(--primary3)"}}>{detailOrder.trackingCode}</span>
+              </div>
+            )}
+            {detailOrder.address && (
+              <div style={{background:"var(--card)",borderRadius:10,padding:"10px 12px",marginTop:10,marginBottom:6}}>
+                <div style={{fontSize:11,color:"var(--muted)",fontWeight:700,marginBottom:4}}>ENDEREÇO DE ENTREGA</div>
+                <div style={{fontSize:13}}>{typeof detailOrder.address === "string" ? detailOrder.address : `${detailOrder.address.street||""}, ${detailOrder.address.city||""} - ${detailOrder.address.state||""}`}</div>
+              </div>
+            )}
+            <div style={{marginTop:14}}>
+              <div style={{fontSize:11,color:"var(--muted)",fontWeight:700,marginBottom:8}}>ITENS DO PEDIDO</div>
+              {(detailOrder.items||[]).map((item,j) => (
+                <div key={j} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid var(--border)",fontSize:13}}>
+                  <span style={{flex:1}}>{item.name||"Peça"} <span style={{color:"var(--muted)"}}>×{item.quantity}</span></span>
+                  <span style={{fontWeight:600}}>{fmt(item.price * item.quantity)}</span>
+                </div>
+              ))}
+              <div style={{display:"flex",justifyContent:"space-between",marginTop:12,fontWeight:700,fontSize:15}}>
+                <span>Total</span>
+                <span style={{color:"var(--accent)"}}>{fmt(detailOrder.total)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2369,67 +2520,120 @@ function PaymentPendingScreen({ setScreen }) {
 
 // ─── SUPPORT (chat real Firebase - support.html + chat.js) ──────────────────
 function SupportScreen({ user }) {
-  const [messages, setMessages] = useState([]);
-  const [msg, setMsg] = useState("");
-  const chatBoxRef = useRef(null);
+  const profile =
+    user?.type === "dismantler" ? "dismantler" :
+    user?.type === "seller"     ? "seller"     : "buyer";
+
+  const profileColor = { buyer: "#2563eb", seller: "#16a34a", dismantler: "#9333ea" }[profile];
+  const profileLabel = { buyer: "Assistente de Compras 🔍", seller: "Assistente de Vendas 🏪", dismantler: "Assistente de Desmanche 🔧" }[profile];
+  const greeting = {
+    buyer:      "Olá! Sou seu assistente de autopeças 👋\n\nPosso ajudar você a encontrar a peça certa pelo catálogo OEM.\n\nInforme a **placa do veículo** e me diga qual peça precisa!",
+    seller:     "Olá, vendedor! Sou seu assistente de publicação 👋\n\nPosso validar códigos OEM e garantir que seus anúncios estejam corretos.\n\nMe informe o **código OEM** da peça!",
+    dismantler: "Olá! Sou seu assistente de desmanche 👋\n\nPosso identificar seu veículo e gerar o catálogo completo de peças.\n\nInforme o **chassi (VIN)** do veículo!",
+  }[profile];
+
+  const [messages, setMessages] = useState([{ role: "assistant", text: greeting, id: "init" }]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
   useEffect(() => {
-    let unsubscribe;
-    const load = async () => {
-      await initFirebase();
-      const ref = firebaseDatabase.dbRef(firebaseDatabase.instance, "chat/global");
-      unsubscribe = firebaseDatabase.onValue(ref, (snapshot) => {
-        const list = [];
-        snapshot.forEach(child => list.push({ id: child.key, ...child.val() }));
-        setMessages(list);
-        setTimeout(() => {
-          if (chatBoxRef.current) chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
-        }, 50);
-      });
-    };
-    load();
-    return () => unsubscribe?.();
-  }, []);
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
 
-  const sendMessage = async () => {
-    if (!msg.trim()) return;
-    await initFirebase();
-    const ref = firebaseDatabase.dbRef(firebaseDatabase.instance, "chat/global");
-    await firebaseDatabase.push(ref, { user: user?.email || "Anônimo", text: msg.trim(), time: Date.now() });
-    setMsg("");
-    inputRef.current?.focus();
+  function renderMsg(text) {
+    const parts = text.split(/(\*\*[^*]+\*\*)/g);
+    return parts.map((p, i) => {
+      if (p.startsWith("**") && p.endsWith("**")) return <strong key={i}>{p.slice(2,-2)}</strong>;
+      return p.split("\n").map((line,j,arr) => (
+        <span key={`${i}-${j}`}>{line}{j < arr.length-1 && <br/>}</span>
+      ));
+    });
+  }
+
+  const handleSend = async () => {
+    const text = input.trim();
+    if (!text || loading) return;
+    setInput("");
+    const updated = [...messages, { role: "user", text, id: Date.now() }];
+    setMessages(updated);
+    setLoading(true);
+    try {
+      const token = await getAuthToken();
+      const history = updated.slice(1, -1).map(m => ({ role: m.role === "user" ? "user" : "assistant", content: m.text }));
+      const res = await fetch(`${API}/agent/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ message: text, history }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || "Erro");
+      setMessages(prev => [...prev, { role: "assistant", text: data.data.reply, id: Date.now() }]);
+    } catch (err) {
+      setMessages(prev => [...prev, { role: "assistant", text: "Desculpe, ocorreu um erro. Tente novamente.", id: Date.now(), error: true }]);
+    } finally { setLoading(false); }
   };
 
   return (
-    <div className="screen" style={{padding:"20px 18px 90px"}}>
-      <div className="page-title">Suporte AutoStore</div>
-      <div className="page-sub">Canal de atendimento em tempo real</div>
-      <div ref={chatBoxRef} className="chat-box">
-        {messages.length === 0 && (
-          <div style={{textAlign:"center",color:"var(--muted)",fontSize:13,margin:"auto"}}>
-            Nenhuma mensagem ainda. Diga olá! 👋
+    <div className="screen" style={{display:"flex",flexDirection:"column",height:"calc(100vh - 60px)"}}>
+      {/* Header */}
+      <div style={{background:profileColor,padding:"14px 18px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        <div style={{flex:1}}>
+          <div style={{color:"#fff",fontWeight:700,fontSize:15}}>{profileLabel}</div>
+          <div style={{color:"rgba(255,255,255,.7)",fontSize:12}}>AutoStore · Online agora 🟢</div>
+        </div>
+      </div>
+
+      {/* Mensagens */}
+      <div style={{flex:1,overflowY:"auto",padding:"16px 16px 8px",display:"flex",flexDirection:"column",gap:10,background:"var(--bg2)"}}>
+        {messages.map(msg => (
+          <div key={msg.id} style={{display:"flex",justifyContent:msg.role==="user"?"flex-end":"flex-start"}}>
+            <div style={{
+              maxWidth:"82%",padding:"10px 13px",
+              borderRadius: msg.role==="user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+              background: msg.role==="user" ? profileColor : msg.error ? "rgba(239,68,68,.15)" : "var(--card)",
+              color: msg.role==="user" ? "#fff" : msg.error ? "var(--danger)" : "var(--text)",
+              fontSize:13.5,lineHeight:1.55,boxShadow:"0 1px 4px rgba(0,0,0,.15)",whiteSpace:"pre-wrap",wordBreak:"break-word",
+            }}>
+              {renderMsg(msg.text)}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div style={{display:"flex",justifyContent:"flex-start"}}>
+            <div style={{padding:"10px 14px",borderRadius:"16px 16px 16px 4px",background:"var(--card)",display:"flex",gap:5,alignItems:"center",boxShadow:"0 1px 4px rgba(0,0,0,.15)"}}>
+              {[0,1,2].map(i => (
+                <span key={i} style={{width:7,height:7,borderRadius:"50%",background:"var(--muted)",display:"inline-block",animation:`bounce 1.2s ease-in-out ${i*.2}s infinite`}} />
+              ))}
+            </div>
           </div>
         )}
-        {messages.map((m) => {
-          const isMine = m.user === user?.email;
-          const time = new Date(m.time).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-          return (
-            <div key={m.id} style={{display:"flex",flexDirection:"column",alignItems:isMine?"flex-end":"flex-start"}}>
-              <div className={`chat-msg ${isMine ? "chat-msg-mine" : "chat-msg-other"}`}>
-                {!isMine && <div className="chat-msg-user">{m.user}</div>}
-                {m.text}
-                <div className="chat-msg-time">{time}</div>
-              </div>
-            </div>
-          );
-        })}
+        <div ref={bottomRef} />
       </div>
-      <div className="chat-input-row">
-        <input ref={inputRef} className="input" placeholder="Digite sua mensagem..." value={msg}
-          onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && sendMessage()} />
-        <button className="chat-send-btn" onClick={sendMessage}>➤</button>
+
+      {/* Input */}
+      <div style={{padding:"12px 14px",borderTop:"1px solid var(--border)",display:"flex",gap:8,background:"var(--bg2)",flexShrink:0}}>
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSend())}
+          placeholder="Digite sua mensagem..."
+          disabled={loading}
+          style={{flex:1,background:"var(--card)",border:"1px solid var(--border2)",borderRadius:10,padding:"10px 14px",fontSize:14,color:"var(--text)",outline:"none"}}
+        />
+        <button
+          onClick={handleSend}
+          disabled={loading || !input.trim()}
+          style={{background:loading||!input.trim()?"var(--card2)":profileColor,border:"none",borderRadius:10,width:44,height:44,cursor:loading||!input.trim()?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"background .15s"}}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke={loading||!input.trim()?"#64748B":"#fff"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
       </div>
+      <style>{`@keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}`}</style>
     </div>
   );
 }
@@ -2450,12 +2654,30 @@ function CentralLojasScreen({ setScreen, setSelectedStore, user, userCoords }) {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [activeSpec, setActiveSpec] = useState("Todas");
+  const [showFilters, setShowFilters] = useState(false);
   const [favorites, setFavorites] = useState(() => {
     try { return JSON.parse(localStorage.getItem("fav_stores") || "[]"); } catch { return []; }
   });
 
-  const specialties = ["Todas","Motor","Suspensão","Freios","Elétrica","Câmbio","Carroceria","Acessórios"];
+  // ── Filtros avançados ──
+  const [filterSpec, setFilterSpec]           = useState("Todas");
+  const [filterPlan, setFilterPlan]           = useState("all");       // all | premium | free
+  const [filterMinRating, setFilterMinRating] = useState(0);           // 0-5
+  const [filterSortBy, setFilterSortBy]       = useState("relevance"); // relevance | rating | parts | distance
+
+  const specialties = ["Todas","Motor","Câmbio","Suspensão","Freios","Elétrica","Acessórios","Carroceria"];
+
+  const activeFiltersCount = [
+    filterSpec !== "Todas",
+    filterPlan !== "all",
+    filterMinRating > 0,
+    filterSortBy !== "relevance",
+  ].filter(Boolean).length;
+
+  const clearFilters = () => {
+    setFilterSpec("Todas"); setFilterPlan("all");
+    setFilterMinRating(0); setFilterSortBy("relevance");
+  };
 
   useEffect(() => {
     fetch(`${API}/marketplaceParts?limit=100`)
@@ -2509,27 +2731,131 @@ function CentralLojasScreen({ setScreen, setSelectedStore, user, userCoords }) {
     localStorage.setItem("fav_stores", JSON.stringify(next));
   };
 
-  const filtered = stores.filter(s => {
+  // ── Filtragem e ordenação ──
+  let filtered = stores.filter(s => {
     const matchSearch = !search || s.name.toLowerCase().includes(search.toLowerCase());
-    const matchSpec = activeSpec === "Todas" || s.specialty?.includes(activeSpec);
-    return matchSearch && matchSpec;
+    const matchSpec   = filterSpec === "Todas" || s.specialty?.includes(filterSpec);
+    const matchPlan   = filterPlan === "all"   || s.plan === filterPlan;
+    const matchRating = s.rating >= filterMinRating;
+    return matchSearch && matchSpec && matchPlan && matchRating;
   });
+
+  if (filterSortBy === "rating")    filtered = [...filtered].sort((a,b) => b.rating - a.rating);
+  else if (filterSortBy === "parts") filtered = [...filtered].sort((a,b) => b.partsCount - a.partsCount);
+  else if (filterSortBy === "distance" && userCoords) {
+    filtered = [...filtered].sort((a,b) => haversineKm(userCoords, a.coords) - haversineKm(userCoords, b.coords));
+  }
 
   return (
     <div className="screen screen-inner">
       <div className="page-title">Central de Lojas</div>
       <div className="page-sub" style={{marginBottom:14}}>Encontre a loja certa para seu veículo</div>
 
-      <div style={{position:"relative",marginBottom:12}}>
-        <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",fontSize:16,pointerEvents:"none"}}>🔍</span>
-        <input className="input" style={{paddingLeft:38}} placeholder="Buscar loja..." value={search} onChange={e=>setSearch(e.target.value)} />
+      {/* ── Barra de busca + botão filtros ── */}
+      <div style={{display:"flex",gap:8,marginBottom:12}}>
+        <div style={{position:"relative",flex:1}}>
+          <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",fontSize:16,pointerEvents:"none"}}>🔍</span>
+          <input className="input" style={{paddingLeft:38}} placeholder="Buscar loja..." value={search} onChange={e=>setSearch(e.target.value)} />
+        </div>
+        <button
+          onClick={() => setShowFilters(v => !v)}
+          style={{flexShrink:0,padding:"0 14px",background:activeFiltersCount>0?"var(--primary)":"var(--card2)",border:"1px solid var(--border2)",borderRadius:"var(--radius-sm)",color:"var(--text)",fontSize:13,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6,position:"relative"}}
+        >
+          🎛️ Filtros
+          {activeFiltersCount > 0 && (
+            <span style={{background:"#fff",color:"var(--primary)",borderRadius:"50%",width:18,height:18,fontSize:11,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center"}}>{activeFiltersCount}</span>
+          )}
+        </button>
       </div>
 
-      <div className="filter-bar" style={{marginBottom:14}}>
-        {specialties.map(s => (
-          <button key={s} className={`chip ${activeSpec===s?"active":""}`} onClick={() => setActiveSpec(s)}>{s}</button>
-        ))}
-      </div>
+      {/* ── Painel de filtros avançado ── */}
+      {showFilters && (
+        <div style={{background:"var(--card)",border:"1px solid var(--border2)",borderRadius:"var(--radius)",padding:"16px",marginBottom:14,animation:"fadeUp .25s ease"}}>
+
+          {/* Especialidade */}
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:11,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".7px",marginBottom:8}}>Especialidade</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              {specialties.map(s => (
+                <button key={s} onClick={() => setFilterSpec(s)}
+                  style={{padding:"5px 12px",borderRadius:20,fontSize:12,fontWeight:600,cursor:"pointer",border:"1px solid",
+                    borderColor: filterSpec===s ? "var(--primary)" : "var(--border2)",
+                    background:  filterSpec===s ? "var(--primary)" : "transparent",
+                    color:       filterSpec===s ? "#fff" : "var(--text2)"}}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Plano */}
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:11,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".7px",marginBottom:8}}>Tipo de loja</div>
+            <div style={{display:"flex",gap:6}}>
+              {[["all","Todas"],["premium","⭐ Premium"],["free","Gratuitas"]].map(([v,l]) => (
+                <button key={v} onClick={() => setFilterPlan(v)}
+                  style={{padding:"5px 14px",borderRadius:20,fontSize:12,fontWeight:600,cursor:"pointer",border:"1px solid",
+                    borderColor: filterPlan===v ? "var(--primary)" : "var(--border2)",
+                    background:  filterPlan===v ? "var(--primary)" : "transparent",
+                    color:       filterPlan===v ? "#fff" : "var(--text2)"}}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Avaliação mínima */}
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:11,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".7px",marginBottom:8}}>Avaliação mínima</div>
+            <div style={{display:"flex",gap:6}}>
+              {[[0,"Qualquer"],[3,"3★ ou mais"],[4,"4★ ou mais"],[5,"5★"]].map(([v,l]) => (
+                <button key={v} onClick={() => setFilterMinRating(v)}
+                  style={{padding:"5px 12px",borderRadius:20,fontSize:12,fontWeight:600,cursor:"pointer",border:"1px solid",
+                    borderColor: filterMinRating===v ? "var(--warning)" : "var(--border2)",
+                    background:  filterMinRating===v ? "var(--warning)" : "transparent",
+                    color:       filterMinRating===v ? "#000" : "var(--text2)"}}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Ordenação */}
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:11,fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".7px",marginBottom:8}}>Ordenar por</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              {[["relevance","Relevância"],["rating","Melhor avaliado"],["parts","Mais peças"],["distance","Mais próximo"]].map(([v,l]) => (
+                <button key={v} onClick={() => setFilterSortBy(v)}
+                  style={{padding:"5px 12px",borderRadius:20,fontSize:12,fontWeight:600,cursor:"pointer",border:"1px solid",
+                    borderColor: filterSortBy===v ? "var(--accent)" : "var(--border2)",
+                    background:  filterSortBy===v ? "var(--accent)" : "transparent",
+                    color:       filterSortBy===v ? "#fff" : "var(--text2)"}}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Rodapé do painel */}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:10,borderTop:"1px solid var(--border)"}}>
+            <button onClick={clearFilters} style={{background:"transparent",border:"none",color:"var(--danger)",fontSize:13,fontWeight:600,cursor:"pointer"}}>
+              🗑️ Limpar filtros
+            </button>
+            <button onClick={() => setShowFilters(false)} style={{background:"var(--primary)",border:"none",borderRadius:8,color:"#fff",fontSize:13,fontWeight:600,padding:"7px 18px",cursor:"pointer"}}>
+              Ver {filtered.length} loja{filtered.length!==1?"s":""}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Chips de especialidade rápidos (quando filtros fechados) ── */}
+      {!showFilters && (
+        <div className="filter-bar" style={{marginBottom:12}}>
+          {specialties.map(s => (
+            <button key={s} className={`chip ${filterSpec===s?"active":""}`} onClick={() => setFilterSpec(s)}>{s}</button>
+          ))}
+        </div>
+      )}
 
       {loading ? (
         <div>{[1,2,3].map(i => (
@@ -3527,7 +3853,24 @@ export default function App() {
           const snap = await firebaseFirestore.getDoc(firebaseFirestore.doc(firebaseFirestore.instance, "users", fbUser.uid));
           const userData = { uid: fbUser.uid, email: fbUser.email, ...snap.data() };
           setUser(userData);
-          if (userData.type === "admin" || userData.isAdmin) setScreen("admin_moderacao");
+          const isAdmin = userData.type === "admin" || userData.isAdmin;
+          if (isAdmin) {
+            // Tenta garantir que o custom claim esteja setado (bootstrap automático)
+            try {
+              const token = await fbUser.getIdToken();
+              const tokenResult = await fbUser.getIdTokenResult();
+              if (!tokenResult.claims.isAdmin) {
+                // Claim ainda não setado — chama bootstrap
+                await fetch(`${API}/admin/bootstrap-claim`, {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${token}` },
+                });
+                // Força refresh do token para pegar o novo claim
+                await fbUser.getIdToken(true);
+              }
+            } catch (_) {}
+            setScreen("admin_moderacao");
+          }
         } else setUser(null);
         setAuthLoading(false);
       });
@@ -3726,7 +4069,7 @@ export default function App() {
       {screen === "payment_success" && <PaymentSuccessScreen setScreen={setScreen} clearCart={clearCart} />}
       {screen === "payment_failure" && <PaymentFailureScreen setScreen={setScreen} />}
       {screen === "payment_pending" && <PaymentPendingScreen setScreen={setScreen} />}
-      {screen === "admin_moderacao" && user?.isAdmin && (
+      {screen === "admin_moderacao" && (user?.isAdmin || user?.type === "admin") && (
         <AdminModeracaoScreen user={user} onBack={() => setScreen("home")} />
       )}
 

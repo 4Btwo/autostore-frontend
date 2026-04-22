@@ -37,17 +37,20 @@ async function getToken() {
 }
 
 async function callAnthropicAI(prompt) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  // Usa o backend (Groq) em vez de chamar a API diretamente (sem chave no front)
+  const token = await getToken();
+  const res = await fetch(`${API}/agent/chat`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1000,
-      messages: [{ role: "user", content: prompt }],
+      message: prompt,
+      profile: "buyer",
+      history: [],
     }),
   });
+  if (!res.ok) throw new Error(`Erro backend IA: ${res.status}`);
   const data = await res.json();
-  const text = data.content?.map(b => b.text || "").join("") || "";
+  const text = data.data?.reply || "";
   try {
     const clean = text.replace(/```json|```/g, "").trim();
     return JSON.parse(clean);
@@ -171,20 +174,21 @@ export default function AdminModeracaoScreen({ user, onBack }) {
       const partsData = await partsRes.json();
       const statsData = await statsRes.json();
 
-      // Se o endpoint não existir ainda, usa dados mockados para demonstração
       if (partsRes.ok) {
         setParts(partsData.data || []);
       } else {
-        setParts(getMockParts(tab));
+        console.error("Erro ao carregar anúncios:", partsData);
+        setParts([]);
       }
       if (statsRes.ok) {
         setStats(statsData.data || { pending: 0, approved: 0, rejected: 0, flagged: 0 });
       } else {
-        setStats({ pending: 7, approved: 43, rejected: 5, flagged: 2 });
+        setStats({ pending: 0, approved: 0, rejected: 0, flagged: 0 });
       }
-    } catch {
-      setParts(getMockParts(tab));
-      setStats({ pending: 7, approved: 43, rejected: 5, flagged: 2 });
+    } catch (err) {
+      console.error("Erro ao carregar dados de moderação:", err);
+      setParts([]);
+      setStats({ pending: 0, approved: 0, rejected: 0, flagged: 0 });
     } finally { setLoading(false); }
   };
 
@@ -251,7 +255,7 @@ Retorne APENAS o JSON, sem explicações adicionais.`;
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok || true) { // aceita mesmo sem endpoint ainda
+      if (res.ok) {
         setParts(p => p.filter(x => x.id !== id));
         setStats(s => ({ ...s, pending: Math.max(0, s.pending - 1), approved: s.approved + 1 }));
         showToast("Anúncio aprovado! ✅");

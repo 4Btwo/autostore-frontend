@@ -10,9 +10,9 @@ const API = import.meta.env.VITE_API_URL || "http://localhost:3000";
  */
 async function getFirebaseToken() {
   try {
-    // firebaseAuth é um global de módulo definido pelo App.jsx
-    if (typeof firebaseAuth !== "undefined" && firebaseAuth?.instance?.currentUser) {
-      return await firebaseAuth.instance.currentUser.getIdToken();
+    // Usa o getAuthToken exposto pelo App.jsx via window.__autostoreGetToken
+    if (typeof window.__autostoreGetToken === "function") {
+      return await window.__autostoreGetToken();
     }
     return null;
   } catch {

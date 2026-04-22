@@ -37,16 +37,14 @@ async function getToken() {
 }
 
 async function callAnthropicAI(prompt) {
-  // Usa o backend (Groq) em vez de chamar a API diretamente (sem chave no front)
-  const token = await getToken();
+  // Usa o backend (Groq) via window.__autostoreGetToken exposto pelo App.jsx
+  const token = typeof window.__autostoreGetToken === "function"
+    ? await window.__autostoreGetToken()
+    : await getToken();
   const res = await fetch(`${API}/agent/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({
-      message: prompt,
-      profile: "buyer",
-      history: [],
-    }),
+    body: JSON.stringify({ message: prompt, profile: "buyer", history: [] }),
   });
   if (!res.ok) throw new Error(`Erro backend IA: ${res.status}`);
   const data = await res.json();
@@ -186,7 +184,7 @@ export default function AdminModeracaoScreen({ user, onBack }) {
         setStats({ pending: 0, approved: 0, rejected: 0, flagged: 0 });
       }
     } catch (err) {
-      console.error("Erro ao carregar dados de moderação:", err);
+      console.error("Erro moderação:", err);
       setParts([]);
       setStats({ pending: 0, approved: 0, rejected: 0, flagged: 0 });
     } finally { setLoading(false); }

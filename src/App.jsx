@@ -45,8 +45,6 @@ async function getAuthToken() {
   return token;
 }
 
-window.__autostoreGetToken = getAuthToken;
-
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -1520,7 +1518,7 @@ function MarketplaceScreen({ onSelectPart }) {
 }
 
 // ─── PART DETAIL ──────────────────────────────────────────────────────────────
-function PartDetailScreen({ part, onBack, onAddToCart }) {
+function PartDetailScreen({ part, onBack, onAddToCart, onSelectStore }) {
   const [qty, setQty] = useState(1);
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -1645,6 +1643,13 @@ function PartDetailScreen({ part, onBack, onAddToCart }) {
                 </div>
               )}
             </div>
+            {data.seller.sellerVerified && onSelectStore && (
+              <button
+                onClick={() => onSelectStore({ id: data.sellerId || data.seller?.uid, name: data.seller.name, photo: data.seller.photo, specialty: data.seller.specialty, plan: data.seller.plan, rating: data.seller.ratingAvg, ratingCount: data.seller.ratingCount })}
+                style={{background:"var(--primary)",color:"#fff",border:"none",borderRadius:8,padding:"6px 12px",fontSize:12,fontWeight:700,cursor:"pointer",flexShrink:0,whiteSpace:"nowrap"}}>
+                🏪 Ver Loja
+              </button>
+            )}
           </div>
           {reviews.length > 0 && (
             <div style={{marginTop:14}}>
@@ -2036,7 +2041,7 @@ function OrdersScreen({ user }) {
       {/* ── Modal detalhe do pedido ── */}
       {detailOrder && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.75)",zIndex:200,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={() => setDetailOrder(null)}>
-          <div style={{background:"var(--bg2)",borderRadius:"20px 20px 0 0",padding:"24px 20px 40px",width:"100%",maxWidth:480,maxHeight:"calc(85vh - 60px)",overflowY:"auto",paddingBottom:"calc(40px + env(safe-area-inset-bottom, 0px))"}} onClick={e => e.stopPropagation()}>
+          <div style={{background:"var(--bg2)",borderRadius:"20px 20px 0 0",padding:"24px 20px 40px",width:"100%",maxWidth:480,maxHeight:"85vh",overflowY:"auto"}} onClick={e => e.stopPropagation()}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
               <div style={{fontWeight:700,fontSize:17}}>Detalhes do Pedido</div>
               <button onClick={() => setDetailOrder(null)} style={{background:"var(--card2)",border:"none",borderRadius:8,color:"var(--text)",padding:"4px 10px",cursor:"pointer",fontSize:16}}>✕</button>
@@ -2578,7 +2583,7 @@ function SupportScreen({ user }) {
   };
 
   return (
-    <div className="screen" style={{display:"flex",flexDirection:"column",height:"calc(100vh - 60px)",maxHeight:"calc(100vh - 60px)",overflow:"hidden"}}>
+    <div className="screen" style={{display:"flex",flexDirection:"column",height:"calc(100vh - 60px)"}}>
       {/* Header */}
       <div style={{background:profileColor,padding:"14px 18px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
         <div style={{flex:1}}>
@@ -2615,7 +2620,7 @@ function SupportScreen({ user }) {
       </div>
 
       {/* Input */}
-      <div style={{padding:"12px 14px",paddingBottom:"calc(12px + env(safe-area-inset-bottom, 0px))",borderTop:"1px solid var(--border)",display:"flex",gap:8,background:"var(--bg2)",flexShrink:0}}>
+      <div style={{padding:"12px 14px",borderTop:"1px solid var(--border)",display:"flex",gap:8,background:"var(--bg2)",flexShrink:0}}>
         <input
           ref={inputRef}
           value={input}
@@ -3971,6 +3976,7 @@ export default function App() {
         part={selectedPart}
         onBack={() => setSelectedPart(null)}
         onAddToCart={(item) => { addToCart(item); show("Adicionado ao carrinho! 🛒", "success"); }}
+        onSelectStore={(store) => { setSelectedPart(null); setSelectedStore(store); setScreen("store_profile"); }}
       />
     </div>
   );

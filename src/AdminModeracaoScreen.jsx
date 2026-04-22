@@ -37,7 +37,6 @@ async function getToken() {
 }
 
 async function callAnthropicAI(prompt) {
-  // Usa o backend (Groq) via window.__autostoreGetToken exposto pelo App.jsx
   const token = typeof window.__autostoreGetToken === "function"
     ? await window.__autostoreGetToken()
     : await getToken();
@@ -144,6 +143,12 @@ export default function AdminModeracaoScreen({ user, onBack }) {
   const [selectedReasonChip, setSelectedReasonChip] = useState("");
   const [toast, setToast] = useState(null);
   const [activeImg, setActiveImg] = useState({});
+  // ── Vendedores pendentes ──
+  const [sellers, setSellers] = useState([]);
+  const [sellersLoading, setSellersLoading] = useState(false);
+  const [sellerActionLoading, setSellerActionLoading] = useState({});
+  const [sellerRejectModal, setSellerRejectModal] = useState(null);
+  const [sellerRejectReason, setSellerRejectReason] = useState("");
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
@@ -159,7 +164,62 @@ export default function AdminModeracaoScreen({ user, onBack }) {
   }, []);
 
   // Carrega anúncios e stats
-  useEffect(() => { loadData(); }, [tab]);
+  useEffect(() => {
+    if (tab === "sellers") { loadSellers(); }
+    else { loadData(); }
+  }, [tab]);
+
+  const loadSellers = async () => {
+    setSellersLoading(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API}/admin/sellers/pending`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setSellers(res.ok ? (data.data || []) : []);
+    } catch (err) {
+      console.error("Erro ao carregar vendedores:", err);
+      setSellers([]);
+    } finally { setSellersLoading(false); }
+  };
+
+  const handleSellerApprove = async (id) => {
+    setSellerActionLoading(s => ({ ...s, [id]: true }));
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API}/admin/sellers/${id}/approve`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setSellers(s => s.filter(x => x.id !== id));
+        showToast("Vendedor aprovado! ✅");
+      } else { showToast("Erro ao aprovar", "error"); }
+    } catch { showToast("Erro ao aprovar", "error"); }
+    finally { setSellerActionLoading(s => ({ ...s, [id]: false })); }
+  };
+
+  const handleSellerReject = async () => {
+    const { id } = sellerRejectModal;
+    if (!sellerRejectReason.trim()) return showToast("Informe o motivo", "error");
+    setSellerActionLoading(s => ({ ...s, [id]: true }));
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API}/admin/sellers/${id}/reject`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ reason: sellerRejectReason }),
+      });
+      if (res.ok) {
+        setSellers(s => s.filter(x => x.id !== id));
+        showToast("Vendedor rejeitado");
+        setSellerRejectModal(null);
+        setSellerRejectReason("");
+      } else { showToast("Erro ao rejeitar", "error"); }
+    } catch { showToast("Erro ao rejeitar", "error"); }
+    finally { setSellerActionLoading(s => ({ ...s, [id]: false })); }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -320,6 +380,7 @@ Retorne APENAS o JSON, sem explicações adicionais.`;
     { key: "flagged", label: "Suspeitos", count: stats.flagged },
     { key: "approved", label: "Aprovados", count: null },
     { key: "rejected", label: "Rejeitados", count: null },
+    { key: "sellers", label: "Vendedores", count: sellers.length || null },
   ];
 
   return (
@@ -427,9 +488,78 @@ Retorne APENAS o JSON, sem explicações adicionais.`;
         ))}
       </div>
 
+      {/* Modal rejeição vendedor */}
+      {sellerRejectModal && (
+        <div className="reject-modal" onClick={() => setSellerRejectModal(null)}>
+          <div className="reject-modal-inner" onClick={e => e.stopPropagation()}>
+            <div className="reject-modal-title">Rejeitar vendedor</div>
+            <div className="reject-modal-sub">Informe o motivo. O vendedor será notificado.</div>
+            <textarea
+              className="mod-textarea"
+              placeholder="Ex: Documentação insuficiente, dados incompletos..."
+              value={sellerRejectReason}
+              onChange={e => setSellerRejectReason(e.target.value)}
+              rows={3}
+              style={{width:"100%",background:"var(--card2)",border:"1px solid var(--border)",borderRadius:"var(--radius-sm)",padding:"10px 12px",color:"var(--text)",fontSize:13,resize:"none",marginBottom:12,boxSizing:"border-box"}}
+            />
+            <button className="act-btn act-reject" style={{width:"100%"}}
+              onClick={handleSellerReject}
+              disabled={sellerActionLoading[sellerRejectModal?.id]}>
+              {sellerActionLoading[sellerRejectModal?.id] ? "Rejeitando..." : "Confirmar Rejeição"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       <div className="mod-content">
-        {loading ? (
+        {tab === "sellers" ? (
+          sellersLoading ? <div className="spinner" /> :
+          sellers.length === 0 ? (
+            <div className="empty-mod">
+              <div className="empty-mod-icon">🎉</div>
+              <div className="empty-mod-title">Nenhum vendedor pendente!</div>
+              <div className="empty-mod-sub">Todos os vendedores foram verificados ✅</div>
+            </div>
+          ) : sellers.map(seller => (
+            <div key={seller.id} className="ann-card" style={{marginBottom:12}}>
+              <div style={{padding:"14px 16px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
+                  <div style={{width:48,height:48,borderRadius:"50%",background:"linear-gradient(135deg,var(--primary),var(--primary2))",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:700,color:"#fff",flexShrink:0}}>
+                    {seller.photo
+                      ? <img src={seller.photo} alt="" style={{width:48,height:48,borderRadius:"50%",objectFit:"cover"}} />
+                      : (seller.name||"V")[0].toUpperCase()
+                    }
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:16,textTransform:"uppercase",letterSpacing:.3}}>{seller.name || "Sem nome"}</div>
+                    <div style={{fontSize:12,color:"var(--muted)",fontFamily:"monospace"}}>{seller.email}</div>
+                    {seller.specialty && <div style={{fontSize:11,color:"var(--muted2)",marginTop:2}}>📦 {seller.specialty}</div>}
+                  </div>
+                  <span style={{background:"rgba(245,158,11,.15)",color:"#f59e0b",border:"1px solid rgba(245,158,11,.3)",borderRadius:99,fontSize:10,fontWeight:700,padding:"3px 8px",fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:.5,flexShrink:0}}>PENDENTE</span>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+                  <div style={{background:"var(--card2)",borderRadius:"var(--radius-sm)",padding:"8px 10px"}}>
+                    <div style={{fontSize:9,fontWeight:700,color:"var(--orange)",textTransform:"uppercase",letterSpacing:.7,fontFamily:"'Barlow Condensed',sans-serif",marginBottom:2}}>Plano</div>
+                    <div style={{fontSize:13,fontWeight:600,fontFamily:"'Barlow Condensed',sans-serif",textTransform:"uppercase"}}>{seller.plan || "Free"}</div>
+                  </div>
+                  <div style={{background:"var(--card2)",borderRadius:"var(--radius-sm)",padding:"8px 10px"}}>
+                    <div style={{fontSize:9,fontWeight:700,color:"var(--orange)",textTransform:"uppercase",letterSpacing:.7,fontFamily:"'Barlow Condensed',sans-serif",marginBottom:2}}>Cadastro</div>
+                    <div style={{fontSize:12,fontWeight:600}}>{seller.createdAt ? new Date(seller.createdAt).toLocaleDateString("pt-BR") : "—"}</div>
+                  </div>
+                </div>
+                <div className="action-row">
+                  <button className="act-btn act-approve" onClick={() => handleSellerApprove(seller.id)} disabled={sellerActionLoading[seller.id]}>
+                    {sellerActionLoading[seller.id] ? "..." : "✅ Aprovar"}
+                  </button>
+                  <button className="act-btn act-reject" onClick={() => { setSellerRejectModal({ id: seller.id }); setSellerRejectReason(""); }} disabled={sellerActionLoading[seller.id]}>
+                    ❌ Rejeitar
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        ) : loading ? (
           <div className="spinner" />
         ) : parts.length === 0 ? (
           <div className="empty-mod">

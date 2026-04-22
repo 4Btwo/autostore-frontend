@@ -2034,7 +2034,7 @@ function OrdersScreen({ user }) {
       {/* ── Modal detalhe do pedido ── */}
       {detailOrder && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.75)",zIndex:200,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={() => setDetailOrder(null)}>
-          <div style={{background:"var(--bg2)",borderRadius:"20px 20px 0 0",padding:"24px 20px 40px",width:"100%",maxWidth:480,maxHeight:"85vh",overflowY:"auto"}} onClick={e => e.stopPropagation()}>
+          <div style={{background:"var(--bg2)",borderRadius:"20px 20px 0 0",padding:"24px 20px 40px",width:"100%",maxWidth:480,maxHeight:"calc(85vh - 60px)",overflowY:"auto",paddingBottom:"calc(40px + env(safe-area-inset-bottom, 0px))"}} onClick={e => e.stopPropagation()}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
               <div style={{fontWeight:700,fontSize:17}}>Detalhes do Pedido</div>
               <button onClick={() => setDetailOrder(null)} style={{background:"var(--card2)",border:"none",borderRadius:8,color:"var(--text)",padding:"4px 10px",cursor:"pointer",fontSize:16}}>✕</button>
@@ -2576,7 +2576,7 @@ function SupportScreen({ user }) {
   };
 
   return (
-    <div className="screen" style={{display:"flex",flexDirection:"column",height:"calc(100vh - 60px)"}}>
+    <div className="screen" style={{display:"flex",flexDirection:"column",height:"calc(100vh - 60px)",maxHeight:"calc(100vh - 60px)",overflow:"hidden"}}>
       {/* Header */}
       <div style={{background:profileColor,padding:"14px 18px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
         <div style={{flex:1}}>
@@ -2613,7 +2613,7 @@ function SupportScreen({ user }) {
       </div>
 
       {/* Input */}
-      <div style={{padding:"12px 14px",borderTop:"1px solid var(--border)",display:"flex",gap:8,background:"var(--bg2)",flexShrink:0}}>
+      <div style={{padding:"12px 14px",paddingBottom:"calc(12px + env(safe-area-inset-bottom, 0px))",borderTop:"1px solid var(--border)",display:"flex",gap:8,background:"var(--bg2)",flexShrink:0}}>
         <input
           ref={inputRef}
           value={input}
